@@ -1,9 +1,7 @@
 import chalk from 'chalk'
-import ora from 'ora'
 import boxen from 'boxen'
 
-let currentSpinner = null
-let progressBars = new Map()
+let lastProgressBox = null
 
 export function displayProgress(progressData) {
   const { type, theme, task, progress, message } = progressData
@@ -14,7 +12,7 @@ export function displayProgress(progressData) {
       break
     
     case 'task':
-      updateTaskProgress(theme, task, progress, message)
+      showTaskProgress(theme, task, progress, message)
       break
     
     case 'complete':
@@ -49,27 +47,42 @@ function showStartMessage(theme) {
   }
 }
 
-function updateTaskProgress(theme, task, progress, message) {
-  const taskKey = `${theme?.name || 'default'}-${task}`
+function showTaskProgress(theme, task, progress, message) {
+  const icon = getTaskIcon(task, progress)
+  const color = getTaskColor(progress)
   
-  if (!progressBars.has(taskKey)) {
-    progressBars.set(taskKey, {
-      spinner: ora({
-        text: message,
-        color: 'cyan'
-      }).start()
-    })
-  }
-  
-  const taskProgress = progressBars.get(taskKey)
+  // Format the message with indentation and progress
+  const formattedMessage = `  ${icon} ${message}`
   
   if (progress === 100) {
-    taskProgress.spinner.succeed(chalk.green('✅ ' + message))
+    console.log(chalk[color](formattedMessage))
   } else if (progress === -1) {
-    taskProgress.spinner.fail(chalk.red('❌ ' + message))
+    console.log(chalk.red(formattedMessage))
   } else {
-    taskProgress.spinner.text = `${message} ${chalk.gray(`(${progress}%)`)}` 
+    // Show progress percentage for ongoing tasks
+    console.log(chalk[color](`${formattedMessage} ${chalk.gray(`[${progress}%]`)}`) )
   }
+}
+
+function getTaskIcon(task, progress) {
+  if (progress === 100) return '✅'
+  if (progress === -1) return '❌'
+  
+  switch (task) {
+    case 'folders': return '📁'
+    case 'clone': return '🔄'
+    case 'config': return '⚙️'
+    case 'git': return '🔧'
+    case 'final': return '🎉'
+    default: return '▶️'
+  }
+}
+
+function getTaskColor(progress) {
+  if (progress === 100) return 'green'
+  if (progress === -1) return 'red'
+  if (progress >= 80) return 'yellow'
+  return 'cyan'
 }
 
 function showCompleteMessage(theme) {
@@ -79,12 +92,7 @@ function showCompleteMessage(theme) {
 }
 
 function showErrorMessage(message) {
-  if (currentSpinner) {
-    currentSpinner.fail(chalk.red(message))
-    currentSpinner = null
-  } else {
-    console.error(chalk.red('\n❌ Error: ' + message))
-  }
+  console.error(chalk.red('\n❌ Error: ' + message))
 }
 
 function showOverallProgress(progress, message) {
@@ -95,39 +103,17 @@ function showOverallProgress(progress, message) {
   const progressBar = chalk.green('█'.repeat(filled)) + chalk.gray('░'.repeat(empty))
   const percentage = chalk.bold(`${progress}%`)
   
-  const content = [
-    `${progressBar} ${percentage} Complete`,
-    chalk.cyan(`Current: ${message.current || 'Working...'}`),
-    chalk.gray(`Next: ${message.next || 'Almost done...'}`)
-  ].join('\n')
-
-  const box = boxen(content, {
-    title: 'Progress',
-    titleAlignment: 'left',
-    padding: 1,
-    borderStyle: 'round',
-    borderColor: 'green'
-  })
-  
-  // Clear previous line and show new progress
-  if (process.stdout.isTTY) {
-    process.stdout.cursorTo(0)
-    process.stdout.clearLine(1)
+  // Show overall progress in a compact way
+  console.log(chalk.dim('\n' + '─'.repeat(60)))
+  console.log(chalk.bold('Overall Progress:'), progressBar, percentage)
+  console.log(chalk.cyan('Current:'), message.current || 'Working...')
+  if (message.next && progress < 100) {
+    console.log(chalk.gray('Next:'), message.next)
   }
-  
-  console.log(box)
+  console.log(chalk.dim('─'.repeat(60) + '\n'))
 }
 
 export function clearProgress() {
-  progressBars.forEach(({ spinner }) => {
-    if (spinner && spinner.isSpinning) {
-      spinner.stop()
-    }
-  })
-  progressBars.clear()
-  
-  if (currentSpinner) {
-    currentSpinner.stop()
-    currentSpinner = null
-  }
+  // No spinners to clear anymore
+  lastProgressBox = null
 }
