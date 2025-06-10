@@ -6,7 +6,7 @@ export async function showWelcomeScreen() {
   console.clear()
   
   // Smaller, simpler title
-  const title = figlet.textSync('Agentic', {
+  const title = figlet.textSync('AgentVibes', {
     font: 'Standard',
     horizontalLayout: 'fitted'
   })
@@ -14,7 +14,9 @@ export async function showWelcomeScreen() {
   // Compact welcome box
   const welcomeBox = boxen(
     chalk.cyan(title) + '\n' +
-    chalk.yellow('Create themed AI coding teams'),
+    chalk.yellow('Create themed AI coding teams') + '\n\n' +
+    chalk.gray('by Paul Preibisch (@paulpreibisch)') + '\n' +
+    chalk.blue('github.com/paulpreibisch/AgentVibes'),
     {
       padding: 1,
       margin: 1,
