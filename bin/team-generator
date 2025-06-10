@@ -1,0 +1,6 @@
+#!/usr/bin/env node
+
+// Alternative entry point for the CLI
+import { runCLI } from '../src/cli/index.js'
+
+runCLI(process.argv.slice(2))

@@ -1,0 +1,103 @@
+#!/bin/bash
+# Launch script for {{emoji}} {{name}} - {{theme}} Agent
+
+set -e
+
+echo "{{emoji}} {{name}} says: \"{{#each personality.catchphrases}}{{#if @first}}{{this}}{{/if}}{{/each}}\""
+echo "🚀 Starting {{name}} on ports {{ports.backend}} (backend) and {{ports.frontend}} (frontend)..."
+
+# Check if this is first run
+if [ ! -f ".initialized" ]; then
+    echo "🔧 First time setup for {{name}}..."
+    
+    # Install dependencies if package.json exists
+    if [ -f "package.json" ]; then
+        echo "📦 Installing dependencies..."
+        npm install
+    fi
+    
+    # Run build if script exists
+    if [ -f "package.json" ] && npm run build --if-present; then
+        echo "🏗️ Build completed"
+    fi
+    
+    # Mark as initialized
+    touch .initialized
+    echo "✅ {{name}} initialized successfully"
+fi
+
+# Check for port conflicts
+if lsof -i :{{ports.backend}} > /dev/null 2>&1; then
+    echo "⚠️ Port {{ports.backend}} is already in use. Stopping conflicting process..."
+    lsof -ti:{{ports.backend}} | xargs kill 2>/dev/null || true
+    sleep 2
+fi
+
+if lsof -i :{{ports.frontend}} > /dev/null 2>&1; then
+    echo "⚠️ Port {{ports.frontend}} is already in use. Stopping conflicting process..."
+    lsof -ti:{{ports.frontend}} | xargs kill 2>/dev/null || true
+    sleep 2
+fi
+
+# Set environment variables
+export NODE_ENV=development
+export AGENT_NAME="{{name}}"
+export AGENT_EMOJI="{{emoji}}"
+export BACKEND_PORT={{ports.backend}}
+export FRONTEND_PORT={{ports.frontend}}
+export TEAM_NUMBER={{teamNumber}}
+export THEME="{{theme}}"
+
+# Start the application
+if [ -f "package.json" ]; then
+    # Node.js application
+    if npm run dev > /dev/null 2>&1; then
+        echo "📦 Starting with npm run dev..."
+        npm run dev &
+    elif npm start > /dev/null 2>&1; then
+        echo "📦 Starting with npm start..."
+        npm start &
+    else
+        echo "📦 Starting with node..."
+        node index.js &
+    fi
+elif [ -f "main.py" ]; then
+    # Python application
+    echo "🐍 Starting Python application..."
+    python main.py &
+elif [ -f "main.go" ]; then
+    # Go application
+    echo "🚀 Starting Go application..."
+    go run main.go &
+else
+    echo "⚠️ No recognized application entry point found"
+    echo "📝 Create a package.json, main.py, or main.go file"
+    exit 1
+fi
+
+# Store process ID
+echo $! > .pid
+
+# Wait a moment for startup
+sleep 3
+
+# Check if services are running
+if curl -s http://localhost:{{ports.backend}}/health > /dev/null 2>&1; then
+    echo "✅ Backend service is healthy at http://localhost:{{ports.backend}}"
+else
+    echo "⚠️ Backend service may not be ready yet at http://localhost:{{ports.backend}}"
+fi
+
+if curl -s http://localhost:{{ports.frontend}} > /dev/null 2>&1; then
+    echo "✅ Frontend service is available at http://localhost:{{ports.frontend}}"
+else
+    echo "⚠️ Frontend service may not be ready yet at http://localhost:{{ports.frontend}}"
+fi
+
+echo ""
+echo "{{emoji}} {{name}} is now running!"
+echo "🌐 Frontend: http://localhost:{{ports.frontend}}"
+echo "🔧 Backend API: http://localhost:{{ports.backend}}"
+echo "🛑 To stop: ./down"
+echo ""
+echo "{{emoji}} {{name}} says: \"{{#each personality.catchphrases}}{{#if @first}}{{this}}{{/if}}{{/each}}\""
