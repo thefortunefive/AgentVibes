@@ -6,6 +6,8 @@
 
 Beautiful console application to create unlimited themed agent teams for any coding project. Transform your development workflow with AI agents that have distinct personalities, communication styles, and specialized roles.
 
+**Repository**: [github.com/paulpreibisch/AgentVibes](https://github.com/paulpreibisch/AgentVibes)
+
 ## ✨ Features
 
 - 🎭 **Themed Personalities** - Matrix, Simpsons, Marvel, Guardians of the Galaxy, Star Wars, Anime
@@ -22,10 +24,10 @@ Beautiful console application to create unlimited themed agent teams for any cod
 npm install -g agentvibes
 
 # Create teams interactively
-agentic
+agentvibes
 
 # Or use command line
-agentic --theme matrix --repo https://github.com/user/repo.git
+agentvibes --theme matrix --repo https://github.com/user/repo.git
 ```
 
 ## 🎭 Available Themes
@@ -59,14 +61,19 @@ agentic --theme matrix --repo https://github.com/user/repo.git
 ### Welcome Screen
 ```
 ╭─────────────────────────────────────────╮
-│            _                   _        │
-│           / \   __ _  ___ _ __ | |_     │
-│          / _ \ / _` |/ _ \ '_ \| __|    │
-│         / ___ \ (_| |  __/ | | | |_     │
-│        /_/   \_\__, |\___|_| |_|\__|    │
-│                |___/                    │
 │                                         │
-│     Create themed AI coding teams       │
+│      _                   __     ___     │
+│     / \   __ _  ___ _ __ \ \   / (_)    │
+│    / _ \ / _` |/ _ \ '_ \| |_| | |     │
+│   / ___ \ (_| |  __/ | | |  _  | |     │
+│  /_/   \_\__, |\___|_| |_| | |_|_|     │
+│          |___/                          │
+│                                         │
+│    Create themed AI coding teams        │
+│                                         │
+│  by Paul Preibisch (@paulpreibisch)     │
+│  github.com/paulpreibisch/AgentVibes    │
+│                                         │
 ╰─────────────────────────────────────────╯
 ```
 
@@ -158,19 +165,19 @@ Each agent maintains their personality in:
 ### Basic Usage
 ```bash
 # Interactive setup
-agentic
+agentvibes
 
 # Quick setup with defaults
-agentic --theme matrix --repo https://github.com/user/repo.git
+agentvibes --theme matrix --repo https://github.com/user/repo.git
 
 # Multiple themes
-agentic --themes matrix,simpsons,guardians --repo https://github.com/user/project.git
+agentvibes --themes matrix,simpsons,guardians --repo https://github.com/user/project.git
 
 # With project board
-agentic --theme guardians --repo https://github.com/user/repo.git --project-board
+agentvibes --theme guardians --repo https://github.com/user/repo.git --project-board
 
 # Dry run (see what would be created)
-agentic --theme matrix --dry-run
+agentvibes --theme matrix --dry-run
 ```
 
 ### Full Options
@@ -273,5 +280,11 @@ Created with ❤️ by [Paul Preibisch](https://twitter.com/paulpreibisch)
 
 ```bash
 npm install -g agentvibes
-agentic
+agentvibes
 ```
+
+---
+
+**Repository**: [github.com/paulpreibisch/AgentVibes](https://github.com/paulpreibisch/AgentVibes)  
+**Twitter**: [@paulpreibisch](https://twitter.com/paulpreibisch)  
+**Created with ❤️ by Paul Preibisch**
