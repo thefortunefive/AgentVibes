@@ -11,7 +11,8 @@
     "agentvibes": "./bin/create-teams"
   },
   "scripts": {
-    "test": "node --test tests/*.test.js",
+    "test": "node --test-timeout=60000 --test tests/*.test.js",
+    "test:simple": "node --test tests/themes.test.js",
     "test:unit": "node --test tests/themes.test.js tests/generators.test.js",
     "test:integration": "node --test tests/integration.test.js",
     "test:e2e": "node --test tests/e2e.test.js tests/cli.test.js",
