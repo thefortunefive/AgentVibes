@@ -10,7 +10,8 @@
 
 Beautiful console application to create unlimited themed agent teams for any coding project. Transform your development workflow with AI agents that have distinct personalities, communication styles, and specialized roles.
 
-**Repository**: [github.com/paulpreibisch/AgentVibes](https://github.com/paulpreibisch/AgentVibes)
+**Repository**: [github.com/paulpreibisch/AgentVibes](https://github.com/paulpreibisch/AgentVibes)  
+**Author**: Paul Preibisch ([@997Fire](https://x.com/997Fire))
 
 ## ✨ Features
 
@@ -278,7 +279,7 @@ You may obtain a copy of the License at
 
 ## 👨‍💻 Author
 
-Created with ❤️ by [Paul Preibisch](https://twitter.com/paulpreibisch)
+Created with ❤️ by [Paul Preibisch](https://x.com/997Fire)
 
 **Ready to assemble your agentic dream team?** 🚀
 
@@ -290,5 +291,5 @@ agentvibes
 ---
 
 **Repository**: [github.com/paulpreibisch/AgentVibes](https://github.com/paulpreibisch/AgentVibes)  
-**Twitter**: [@paulpreibisch](https://twitter.com/paulpreibisch)  
+**Twitter**: [@997Fire](https://x.com/997Fire)  
 **Created with ❤️ by Paul Preibisch**
