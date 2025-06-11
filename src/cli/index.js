@@ -58,13 +58,22 @@ async function runInteractiveMode(options) {
   try {
     // Check if setup already exists
     const fs = (await import('fs-extra')).default
+    
+    // Get absolute path for display
+    const absolutePath = path.resolve(options.output)
+    
     const existingSetup = await checkExistingSetup(options.output)
     
     if (existingSetup.exists) {
       // Show welcome screen
       await showWelcomeScreen()
       
-      console.log('\n' + chalk.bold('⚠️  Existing Setup Detected'))
+      // Show current working directory
+      console.log('\n' + chalk.bold('📍 Working Directory'))
+      console.log(chalk.cyan(`   ${absolutePath}`))
+      console.log(chalk.gray('   (Current location)\n'))
+      
+      console.log(chalk.bold('⚠️  Existing Setup Detected'))
       console.log(chalk.yellow(`💡 Found ${existingSetup.teamCount} teams in ${existingSetup.themes.join(', ')}\n`))
       
       const { modifyChoice } = await inquirer.prompt([
@@ -132,8 +141,13 @@ async function runInteractiveMode(options) {
       await showWelcomeScreen()
     }
 
+    // Show current working directory
+    console.log('\n' + chalk.bold('📍 Working Directory'))
+    console.log(chalk.cyan(`   ${absolutePath}`))
+    console.log(chalk.gray('   (Teams will be created here)\n'))
+
     // Select setup type
-    console.log('\n' + chalk.bold('Setup Type'))
+    console.log(chalk.bold('Setup Type'))
     console.log(chalk.yellow('💡 Choose how you want to create your AI coding teams\n'))
     
     const { setupType } = await inquirer.prompt([
