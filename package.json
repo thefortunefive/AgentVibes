@@ -12,10 +12,10 @@
   },
   "scripts": {
     "test": "node --test tests/*.test.js",
-    "test:unit": "node --test tests/themes.test.js tests/generators.test.js tests/cli.test.js",
+    "test:unit": "node --test tests/themes.test.js tests/generators.test.js",
     "test:integration": "node --test tests/integration.test.js",
-    "test:e2e": "node --test tests/e2e.test.js",
-    "test:all": "node test-all.js",
+    "test:e2e": "node --test tests/e2e.test.js tests/cli.test.js",
+    "test:all": "npm run test:unit && npm run test:integration && npm run test:e2e",
     "test:watch": "node --test --watch tests/*.test.js",
     "start": "node bin/create-teams",
     "create-teams": "node bin/create-teams",

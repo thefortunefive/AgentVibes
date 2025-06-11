@@ -33,7 +33,7 @@ export async function loadThemes() {
 
 export async function loadThemeByName(themeName) {
   const themes = await loadThemes()
-  const theme = themes.find(t => t.name.toLowerCase() === themeName.toLowerCase())
+  const theme = themes.find(t => t.name.toLowerCase() === String(themeName).toLowerCase())
   
   if (!theme) {
     throw new Error(`Theme "${themeName}" not found`)

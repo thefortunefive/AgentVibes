@@ -46,8 +46,12 @@ export async function runCLI(args) {
 
   const options = program.opts()
 
-  // If no CLI arguments provided, run interactive mode
-  if (!options.themes && !options.theme && !options.config) {
+  // Check if CLI arguments were provided
+  const hasThemes = options.themes !== undefined
+  const hasTheme = options.theme !== undefined
+  const hasConfig = options.config !== undefined
+  
+  if (!hasThemes && !hasTheme && !hasConfig) {
     await runInteractiveMode(options)
   } else {
     await runCommandMode(options)
@@ -248,7 +252,11 @@ async function runCommandMode(options) {
     let portOffset = 0
     
     for (const themeName of themeNames) {
-      const theme = await loadThemeByName(themeName.trim())
+      const trimmedName = themeName.trim()
+      if (!trimmedName) {
+        throw new Error('Theme "" not found')
+      }
+      const theme = await loadThemeByName(trimmedName)
       
       // Add all agents from this theme as teams
       theme.agents.forEach((agent, index) => {
