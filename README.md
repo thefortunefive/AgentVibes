@@ -1,8 +1,12 @@
 # 🎭 AgentVibes
 
+[![CI](https://github.com/paulpreibisch/AgentVibes/actions/workflows/ci.yml/badge.svg)](https://github.com/paulpreibisch/AgentVibes/actions/workflows/ci.yml)
+[![Tests](https://github.com/paulpreibisch/AgentVibes/actions/workflows/test.yml/badge.svg)](https://github.com/paulpreibisch/AgentVibes/actions/workflows/test.yml)
+[![codecov](https://codecov.io/gh/paulpreibisch/AgentVibes/branch/master/graph/badge.svg)](https://codecov.io/gh/paulpreibisch/AgentVibes)
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![npm version](https://badge.fury.io/js/agentvibes.svg)](https://badge.fury.io/js/agentvibes)
 [![GitHub stars](https://img.shields.io/github/stars/paulpreibisch/AgentVibes.svg)](https://github.com/paulpreibisch/AgentVibes/stargazers)
+[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg?style=flat)](http://makeapullrequest.com)
 
 Beautiful console application to create unlimited themed agent teams for any coding project. Transform your development workflow with AI agents that have distinct personalities, communication styles, and specialized roles.
 
