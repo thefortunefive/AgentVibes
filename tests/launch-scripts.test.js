@@ -10,6 +10,7 @@ import path from 'path'
 import { execSync } from 'child_process'
 import { generateTeams } from '../src/generators/team-generator.js'
 import { loadThemeByName } from '../src/themes/theme-loader.js'
+import os from 'node:os'
 
 const TEST_OUTPUT_DIR = path.join(process.cwd(), 'tests', 'launch-scripts-output')
 
@@ -23,7 +24,12 @@ test('SORAORC Launch Scripts', async (t) => {
 
   // Cleanup after each test
   await t.afterEach(async () => {
-    await fs.remove(TEST_OUTPUT_DIR)
+    try {
+      await fs.remove(TEST_OUTPUT_DIR)
+    } catch (error) {
+      // Ignore cleanup errors
+      console.error('Cleanup error:', error.message)
+    }
   })
 
   await t.test('should generate individual agent launch scripts with correct content', async () => {
@@ -202,6 +208,12 @@ test('SORAORC Launch Scripts', async (t) => {
   })
 
   await t.test('should generate valid bash script syntax', async () => {
+    // Skip bash syntax validation on Windows
+    if (os.platform() === 'win32') {
+      console.log('Skipping bash syntax validation on Windows')
+      return
+    }
+
     const theme = await loadThemeByName('matrix')
     const teams = theme.agents.slice(0, 1).map((agent, index) => ({
       ...agent,
