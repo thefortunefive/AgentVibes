@@ -18,8 +18,11 @@ export function generateCharacterConfig(agent, theme, teamNumber) {
   return {
     id: agent.id,
     name: agent.name,
+    agent_name: agent.name, // SoraOrc compatibility
     emoji: agent.emoji,
     teamNumber,
+    team_number: teamNumber, // SoraOrc compatibility
+    role: agent.role?.id || agent.role || 'dev', // SoraOrc compatibility
     theme: theme.name,
     themeEmoji: theme.emoji,
     description: agent.description,
@@ -34,12 +37,18 @@ export function generateCharacterConfig(agent, theme, teamNumber) {
         logs: `${agent.id}_logs`
       }
     },
+    chrome_launcher: {
+      enabled: true,
+      port: agent.ports?.chrome || (agent.ports?.backend + 1000),
+      headless: false,
+      profile: `${agent.id}-profile`
+    },
     paths: {
-      root: `teams/team-${teamNumber}/${agent.role || 'dev'}`,
-      claude: `teams/team-${teamNumber}/${agent.role || 'dev'}/CLAUDE.md`,
-      mcp: `teams/team-${teamNumber}/${agent.role || 'dev'}/.mcp.json`,
-      commands: `teams/team-${teamNumber}/${agent.role || 'dev'}/.claude/commands`,
-      gitHooks: `teams/team-${teamNumber}/${agent.role || 'dev'}/.git/hooks`
+      root: `teams/team-${teamNumber}/${agent.role?.id || agent.role || 'dev'}`,
+      claude: `teams/team-${teamNumber}/${agent.role?.id || agent.role || 'dev'}/CLAUDE.md`,
+      mcp: `teams/team-${teamNumber}/${agent.role?.id || agent.role || 'dev'}/.mcp.json`,
+      commands: `teams/team-${teamNumber}/${agent.role?.id || agent.role || 'dev'}/.claude/commands`,
+      gitHooks: `teams/team-${teamNumber}/${agent.role?.id || agent.role || 'dev'}/.git/hooks`
     }
   }
 }

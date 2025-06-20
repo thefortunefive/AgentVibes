@@ -105,7 +105,7 @@ export class TeamBuilder {
       
       return {
         ...team,
-        id: `${team.theme.toLowerCase().replace(/\s+/g, '-')}-team${team.teamNumber}-${team.role}`,
+        id: `${team.theme.toLowerCase().replace(/\s+/g, '-')}-team${team.teamNumber}-${team.role?.id || team.role || 'dev'}`,
         name: team.name || team.character,
         host: 'localhost',
         ports: team.ports || {
