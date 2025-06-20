@@ -33,7 +33,7 @@ export async function runCLI(args) {
   program
     .name('create-teams')
     .description('Create unlimited themed agent teams for collaborative coding projects')
-    .version('1.0.0')
+    .version('1.1.0')
     .option('-t, --themes <themes>', 'Comma-separated theme names')
     .option('--theme <theme>', 'Single theme name (alias for --themes)')
     .option('-r, --repo <url>', 'GitHub repository URL to clone')
