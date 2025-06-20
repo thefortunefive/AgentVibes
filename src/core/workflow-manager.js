@@ -99,7 +99,7 @@ export class WorkflowManager {
     
     let roles
     if (roleChoice === 'default') {
-      roles = this.options.defaultRoles
+      roles = this.roleManager.getDefaultRoles()
     } else if (roleChoice === 'custom') {
       roles = await this.roleManager.createCustomRoles()
     } else {

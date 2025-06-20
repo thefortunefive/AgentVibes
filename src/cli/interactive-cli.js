@@ -132,7 +132,7 @@ export class InteractiveCLI {
   }
 
   /**
-   * Select character with search and theme grouping
+   * Select character with theme expansion
    */
   async selectCharacter(options = {}) {
     const {
@@ -147,54 +147,65 @@ export class InteractiveCLI {
     const { loadThemes } = await import('../themes/theme-loader.js')
     const themes = await loadThemes()
     
-    // Build character list with theme grouping
-    const allCharacters = []
-    const excludeSet = new Set(excludeCharacters)
+    // First, let user select a theme
+    const themeChoices = themes.map(theme => ({
+      name: `${theme.emoji} ${theme.name}`,
+      value: theme,
+      description: `${theme.agents.length} characters available`
+    }))
     
-    for (const theme of themes) {
-      if (showThemeGroups && allCharacters.length > 0) {
-        allCharacters.push(new Separator(`─── ${theme.emoji} ${theme.name} ───`))
-      }
+    const selectedTheme = await select({
+      message: `Select theme for Team ${teamNumber} - ${role.name || role.id || role}`,
+      choices: themeChoices,
+      pageSize: 15,
+      theme: this.theme
+    })
+    
+    // Then show characters from selected theme
+    const excludeSet = new Set(excludeCharacters)
+    const availableCharacters = []
+    
+    for (const character of selectedTheme.agents) {
+      const characterId = `${selectedTheme.name}-${character.name}`
       
-      for (const character of theme.agents) {
-        const characterId = `${theme.name}-${character.name}`
-        
-        if (!excludeSet.has(characterId)) {
-          allCharacters.push({
-            name: `${character.emoji} ${character.name}`,
-            value: {
-              ...character,
-              id: characterId,
-              theme: theme.name,
-              themeEmoji: theme.emoji
-            },
-            description: character.catchphrase
-          })
-        }
+      if (!excludeSet.has(characterId)) {
+        availableCharacters.push({
+          name: `${character.emoji} ${character.name}`,
+          value: {
+            ...character,
+            id: characterId,
+            theme: selectedTheme.name,
+            themeEmoji: selectedTheme.emoji
+          },
+          description: character.catchphrase
+        })
       }
     }
     
-    if (showSearch && allCharacters.length > 10) {
-      // Use search for large lists
+    if (availableCharacters.length === 0) {
+      throw new Error(`No available characters in ${selectedTheme.name} theme`)
+    }
+    
+    if (showSearch && availableCharacters.length > 10) {
+      // Use search for large character lists
       return await search({
-        message: `Select character for Team ${teamNumber} - ${role}`,
+        message: `Select character from ${selectedTheme.emoji} ${selectedTheme.name}`,
         source: async (input) => {
-          if (!input) return allCharacters
+          if (!input) return availableCharacters
           
           const searchTerm = input.toLowerCase()
-          return allCharacters.filter(char => {
-            if (char instanceof Separator) return false
-            return char.name.toLowerCase().includes(searchTerm) ||
-                   char.description?.toLowerCase().includes(searchTerm)
-          })
+          return availableCharacters.filter(char => 
+            char.name.toLowerCase().includes(searchTerm) ||
+            char.description?.toLowerCase().includes(searchTerm)
+          )
         },
         theme: this.theme
       })
     } else {
-      // Use select for smaller lists
+      // Use select for smaller character lists
       return await select({
-        message: `Select character for Team ${teamNumber} - ${role}`,
-        choices: allCharacters,
+        message: `Select character from ${selectedTheme.emoji} ${selectedTheme.name}`,
+        choices: availableCharacters,
         pageSize: 15,
         theme: this.theme
       })
