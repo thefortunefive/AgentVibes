@@ -1,5 +1,204 @@
 # 🎤 AgentVibes Release Notes
 
+## 📦 v2.0.12 - Remote TTS & BMAD Command Fix (2025-01-10)
+
+### 🤖 AI Summary
+
+This patch release adds powerful remote TTS audio forwarding for WSL/remote server environments and fixes the missing `/agent-vibes:bmad` slash command. Users working on remote servers or WSL can now hear TTS audio on their local machine through SSH forwarding, while BMAD users can finally access the voice integration command that was previously undetected.
+
+### ✨ New Features
+
+#### Remote TTS Audio Forwarding
+- **SSH audio forwarding** - TTS audio plays on your local machine when working remotely
+- **Automatic detection** - Detects SSH_CONNECTION and forwards audio automatically
+- **Multiple forwarding methods**:
+  - OSC 52 clipboard (terminals supporting OSC sequences)
+  - HTTP server (Python-based local audio player)
+  - SSH tunnel (port forwarding setup)
+- **WSL compatibility** - Perfect for WSL users who want audio on Windows host
+- **Configuration guide** - New `docs/REMOTE_TTS_SETUP.md` with setup instructions
+- **Fallback support** - Gracefully falls back to local playback if forwarding fails
+
+**New Scripts:**
+- `.claude/hooks/play-tts-remote.sh` - Remote audio forwarding logic
+- `.claude/hooks/play-tts-local-wrapper.sh` - Local playback wrapper for HTTP method
+- `docs/REMOTE_TTS_SETUP.md` - Complete setup guide
+
+#### Enhanced Piper TTS Installation
+- **PATH detection** - Automatically finds Piper in `~/.local/bin` even if not in PATH
+- **Installation validation** - Verifies Piper installation success before proceeding
+- **Better error handling** - Clear messages when Piper isn't found
+- **Automatic voice download prompts** - Offers to download voice models after installation
+
+### 🐛 Bug Fixes
+
+#### BMAD Command Detection Fix
+- **Fixed**: `/agent-vibes:bmad` command not appearing in Claude Code slash command list
+- **Root Cause**: Missing YAML frontmatter and bash directive in command file
+- **Impact**: BMAD voice integration features are now accessible
+- **Added**:
+  - YAML frontmatter with description and argument-hint
+  - `!bash .claude/hooks/bmad-voice-manager.sh $ARGUMENTS` directive
+- **File**: `.claude/commands/agent-vibes/bmad.md`
+
+**What Was Broken:**
+```bash
+# Before: Command not found
+/agent-vibes:bmad status
+# Error: Unknown command
+
+# After: Works perfectly
+/agent-vibes:bmad status
+# ✅ BMAD voice plugin: ENABLED
+```
+
+### 🔧 Technical Changes
+
+#### Remote TTS Architecture
+**Main Router (`play-tts.sh`):**
+- Detects `$SSH_CONNECTION` environment variable
+- Routes to `play-tts-remote.sh` when SSH session detected
+- Falls back to local playback for non-SSH sessions
+
+**Forwarding Methods:**
+1. **OSC 52 (Clipboard)**:
+   - Encodes audio as base64
+   - Sends via OSC 52 escape sequence
+   - Requires terminal supporting OSC 52
+   - Best for: iTerm2, Windows Terminal, Hyper
+
+2. **HTTP Server**:
+   - Starts Python HTTP server on port 8765
+   - Serves audio files over SSH tunnel
+   - Opens browser to play audio
+   - Best for: All environments with Python
+
+3. **SSH Tunnel**:
+   - Uses SSH reverse tunnel (-R)
+   - Forwards audio files to local machine
+   - Requires SSH agent forwarding
+   - Best for: Advanced users
+
+**Configuration:**
+```bash
+# Set in .claude/tts-remote-method.txt (project-local)
+# or ~/.claude/tts-remote-method.txt (global)
+echo "http" > .claude/tts-remote-method.txt
+```
+
+#### Piper Installer Improvements
+**Modified: `.claude/hooks/piper-installer.sh`**
+- Added `~/.local/bin/piper` detection
+- Checks for execution permission
+- Validates installation with `piper --version`
+- Shows PATH instructions when Piper found but not in PATH
+- Auto-detects pipx installation directory
+
+**Modified: `src/installer.js`**
+- Enhanced Piper installation workflow
+- Added PATH detection before installation
+- Shows helpful PATH export command when needed
+- Validates Piper is accessible after installation
+
+### 📊 Files Changed
+
+**Added (3 files):**
+- `.claude/hooks/play-tts-remote.sh` (81 lines)
+- `.claude/hooks/play-tts-local-wrapper.sh` (44 lines)
+- `docs/REMOTE_TTS_SETUP.md` (190 lines)
+
+**Modified (5 files):**
+- `.claude/commands/agent-vibes/bmad.md` (8 insertions)
+- `.claude/hooks/play-tts.sh` (31 insertions)
+- `.claude/hooks/play-tts-piper.sh` (12 lines changed)
+- `.claude/hooks/piper-installer.sh` (58 insertions, 6 deletions)
+- `src/installer.js` (107 insertions, 6 deletions)
+
+**Total Changes:** 545 insertions, 13 deletions across 8 files
+
+### 🎯 User Impact
+
+**Before v2.0.12:**
+- Remote/WSL users couldn't hear TTS audio
+- `/agent-vibes:bmad` command was invisible
+- Piper installation didn't validate PATH
+- No remote audio forwarding options
+
+**After v2.0.12:**
+- Remote TTS works via SSH forwarding
+- BMAD command fully functional
+- Piper installer validates PATH and accessibility
+- Multiple forwarding methods for different environments
+- Complete setup guide for remote audio
+
+### 💡 Usage Examples
+
+#### Remote TTS Setup
+```bash
+# Quick setup for HTTP method (recommended)
+echo "http" > .claude/tts-remote-method.txt
+
+# On your LOCAL machine, create SSH tunnel:
+ssh -R 8765:localhost:8765 user@remote-server
+
+# Now TTS audio plays on your local machine!
+```
+
+#### BMAD Voice Integration
+```bash
+# Enable BMAD plugin
+/agent-vibes:bmad enable
+
+# Check status
+/agent-vibes:bmad status
+
+# Set custom voice for agent
+/agent-vibes:bmad set pm "Aria"
+
+# List all agent mappings
+/agent-vibes:bmad list
+```
+
+### 🔄 Migration Notes
+
+**For Remote/WSL Users:**
+1. Update AgentVibes: `npx agentvibes update`
+2. Read setup guide: `docs/REMOTE_TTS_SETUP.md`
+3. Choose forwarding method (HTTP recommended)
+4. Configure SSH tunnel for chosen method
+5. Enjoy TTS audio on local machine!
+
+**For BMAD Users:**
+- Update to v2.0.12 to access `/agent-vibes:bmad` command
+- No configuration changes needed
+- All existing BMAD voice mappings preserved
+
+**For All Users:**
+- No breaking changes
+- Remote TTS is optional (auto-detected)
+- Local TTS works exactly as before
+
+### 📝 Commits in This Release
+
+```
+ef99bda feat: add remote TTS audio forwarding support
+156feb7 feat: enhance Piper TTS installation and audio forwarding support
+```
+
+### 🙏 Credits
+
+- Thanks to WSL and remote server users who requested audio forwarding
+- Special appreciation to BMAD users who reported the missing command
+- Python HTTP server method inspired by similar remote audio solutions
+
+---
+
+🤖 Generated with [Claude Code](https://claude.com/claude-code)
+
+Co-Authored-By: Claude <noreply@anthropic.com>
+
+---
+
 ## 📦 v2.0.10 - GitHub Star Reminder & Provider Fixes (2025-01-10)
 
 ### 🤖 AI Summary

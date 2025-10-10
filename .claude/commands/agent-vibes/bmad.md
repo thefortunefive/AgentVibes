@@ -1,3 +1,8 @@
+---
+description: Complete BMAD voice integration for agents
+argument-hint: [command] [args...]
+---
+
 # /agent-vibes:bmad Command
 
 Complete BMAD voice integration - assigns unique voices to each BMAD agent AND makes them speak when activated.
@@ -194,3 +199,5 @@ if [[ -n "$BMAD_AGENT_ID" ]]; then
     fi
 fi
 ```
+
+!bash .claude/hooks/bmad-voice-manager.sh $ARGUMENTS
