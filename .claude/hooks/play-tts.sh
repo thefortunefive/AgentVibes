@@ -18,6 +18,37 @@ VOICE_OVERRIDE="$2"  # Optional: voice name or ID
 # Get script directory
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
+# Check if we're in an SSH session and should use remote TTS
+if [ -n "$SSH_CONNECTION" ] || [ -n "$SSH_CLIENT" ]; then
+    # Check if remote TTS forwarding is enabled
+    if [ -f "$HOME/.claude/tts-remote-forward" ] || [ "$AGENTVIBES_REMOTE_TTS" = "true" ]; then
+        # In SSH session with forwarding enabled - generate locally but don't play
+        # The audio data should be captured and sent to the client
+
+        # Source provider manager to get active provider
+        source "$SCRIPT_DIR/provider-manager.sh"
+        ACTIVE_PROVIDER=$(get_active_provider)
+
+        case "$ACTIVE_PROVIDER" in
+          piper)
+            # Generate audio and output to stdout for SSH forwarding
+            exec "$SCRIPT_DIR/play-tts-remote.sh" "$TEXT"
+            ;;
+          elevenlabs)
+            # For ElevenLabs, we might need a different approach
+            # since it requires API calls
+            exec "$SCRIPT_DIR/play-tts-elevenlabs.sh" "$TEXT" "$VOICE_OVERRIDE"
+            ;;
+          *)
+            echo "❌ Unknown provider: $ACTIVE_PROVIDER" >&2
+            exit 1
+            ;;
+        esac
+        exit 0
+    fi
+fi
+
+# Normal local playback path
 # Source provider manager to get active provider
 source "$SCRIPT_DIR/provider-manager.sh"
 
