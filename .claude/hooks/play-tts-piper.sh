@@ -79,7 +79,15 @@ if [[ -z "$TEXT" ]]; then
 fi
 
 # Check if Piper is installed
-if ! command -v piper &> /dev/null; then
+PIPER_CMD=""
+if command -v piper &> /dev/null; then
+  PIPER_CMD="piper"
+elif [[ -x "$HOME/.local/bin/piper" ]]; then
+  # Check pipx installation directory
+  PIPER_CMD="$HOME/.local/bin/piper"
+  echo "⚠️  Using Piper from: $PIPER_CMD"
+  echo "   Add to PATH: export PATH=\"\$HOME/.local/bin:\$PATH\""
+else
   echo "❌ Error: Piper TTS not installed"
   echo "Install with: pipx install piper-tts"
   echo "Or run: .claude/hooks/piper-installer.sh"
@@ -152,7 +160,7 @@ TEMP_FILE="$AUDIO_DIR/tts-$(date +%s).wav"
 # @exitcode 0=success, 4=synthesis error
 # @sideeffects Creates audio file
 # @edgecases Handles piper errors, invalid models
-echo "$TEXT" | piper --model "$VOICE_PATH" --output_file "$TEMP_FILE" 2>/dev/null
+echo "$TEXT" | "$PIPER_CMD" --model "$VOICE_PATH" --output_file "$TEMP_FILE" 2>/dev/null
 
 if [[ ! -f "$TEMP_FILE" ]] || [[ ! -s "$TEMP_FILE" ]]; then
   echo "❌ Failed to synthesize speech with Piper"

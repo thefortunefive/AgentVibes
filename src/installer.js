@@ -136,8 +136,93 @@ async function install(options = {}) {
 
     selectedProvider = provider;
 
-    // If Piper selected, ask for voice storage location
+    // If Piper selected, check if Piper is installed
     if (selectedProvider === 'piper') {
+      // Check if Piper is installed
+      let piperInstalled = false;
+      try {
+        const { execSync } = await import('node:child_process');
+        // First check if piper is in PATH
+        execSync('which piper', { stdio: 'ignore' });
+        piperInstalled = true;
+      } catch {
+        // If not in PATH, check if it exists in pipx installation directory
+        const homeDir = process.env.HOME || process.env.USERPROFILE;
+        const pipxPiperPath = path.join(homeDir, '.local', 'bin', 'piper');
+        try {
+          await fs.access(pipxPiperPath, fs.constants.X_OK);
+          piperInstalled = true;
+          console.log(chalk.yellow('\n⚠️  Piper is installed but not in PATH'));
+          console.log(chalk.gray(`   Location: ${pipxPiperPath}`));
+          console.log(chalk.gray('   Run this to add to PATH:'));
+          console.log(chalk.cyan('   export PATH="$HOME/.local/bin:$PATH"\n'));
+        } catch {
+          // Piper not found anywhere
+        }
+      }
+
+      if (!piperInstalled) {
+        console.log(chalk.yellow('\n⚠️  Piper TTS is not installed'));
+        console.log(chalk.gray('   Piper is a free, offline neural TTS system'));
+        console.log(chalk.gray('   It needs to be installed separately via pipx\n'));
+
+        const { installPiper } = await inquirer.prompt([
+          {
+            type: 'confirm',
+            name: 'installPiper',
+            message: 'Would you like to install Piper TTS now?',
+            default: true,
+          },
+        ]);
+
+        if (installPiper) {
+          console.log(chalk.cyan('\n🚀 Installing Piper TTS...\n'));
+
+          // Check if piper-installer.sh exists in the source directory
+          const piperInstallerPath = path.join(__dirname, '..', '.claude', 'hooks', 'piper-installer.sh');
+
+          try {
+            await fs.access(piperInstallerPath);
+
+            // Run the Piper installer
+            const { execSync } = await import('node:child_process');
+            try {
+              execSync(`bash "${piperInstallerPath}"`, {
+                stdio: 'inherit',
+                cwd: path.dirname(piperInstallerPath)
+              });
+
+              // Verify installation succeeded
+              try {
+                execSync('which piper', { stdio: 'ignore' });
+                console.log(chalk.green('\n✓ Piper TTS installed successfully!\n'));
+                piperInstalled = true;
+              } catch {
+                console.log(chalk.yellow('\n⚠️  Piper installed but not found in PATH'));
+                console.log(chalk.gray('   You may need to restart your terminal\n'));
+              }
+            } catch (error) {
+              console.log(chalk.red('\n✗ Piper installation failed'));
+              console.log(chalk.gray('   You can try installing manually later with:'));
+              console.log(chalk.cyan('   .claude/hooks/piper-installer.sh\n'));
+            }
+          } catch {
+            console.log(chalk.yellow('\n⚠️  Piper installer script not found'));
+            console.log(chalk.gray('   The installer will be copied during installation'));
+            console.log(chalk.gray('   You can install Piper later with:'));
+            console.log(chalk.cyan('   .claude/hooks/piper-installer.sh\n'));
+          }
+        } else {
+          console.log(chalk.yellow('\n⚠️  Skipping Piper installation'));
+          console.log(chalk.gray('   You can install it later with:'));
+          console.log(chalk.cyan('   .claude/hooks/piper-installer.sh'));
+          console.log(chalk.gray('   Or switch to ElevenLabs with:'));
+          console.log(chalk.cyan('   /agent-vibes:provider switch elevenlabs\n'));
+        }
+      } else {
+        console.log(chalk.green('\n✓ Piper TTS is already installed\n'));
+      }
+
       const homeDir = process.env.HOME || process.env.USERPROFILE;
       const defaultPiperPath = path.join(homeDir, '.claude', 'piper-voices');
 
@@ -294,6 +379,32 @@ async function install(options = {}) {
     } else {
       selectedProvider = 'piper';
       console.log(chalk.green('✓ Using Piper TTS (free option)\n'));
+
+      // Check if Piper is installed in auto mode
+      let piperInstalled = false;
+      const homeDir = process.env.HOME || process.env.USERPROFILE;
+      const pipxPiperPath = path.join(homeDir, '.local', 'bin', 'piper');
+
+      try {
+        const { execSync } = await import('node:child_process');
+        execSync('which piper', { stdio: 'ignore' });
+        piperInstalled = true;
+        console.log(chalk.green('✓ Piper TTS is already installed\n'));
+      } catch {
+        // Check if it exists in pipx installation directory
+        try {
+          await fs.access(pipxPiperPath, fs.constants.X_OK);
+          piperInstalled = true;
+          console.log(chalk.yellow('⚠️  Piper is installed but not in PATH'));
+          console.log(chalk.gray(`   Location: ${pipxPiperPath}`));
+          console.log(chalk.gray('   Add to PATH with:'));
+          console.log(chalk.cyan('   export PATH="$HOME/.local/bin:$PATH"\n'));
+        } catch {
+          console.log(chalk.yellow('⚠️  Piper TTS is not installed'));
+          console.log(chalk.gray('   Install it after setup with:'));
+          console.log(chalk.cyan('   .claude/hooks/piper-installer.sh\n'));
+        }
+      }
     }
   }
 

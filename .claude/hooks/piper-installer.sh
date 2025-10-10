@@ -69,15 +69,65 @@ fi
 
 # Install Piper TTS
 echo "📥 Installing Piper TTS via pipx..."
-pipx install piper-tts
+pipx install piper-tts || pipx install --force piper-tts
 
+# Ensure pipx's bin directory is in PATH
+echo ""
+echo "🔧 Configuring PATH..."
+pipx ensurepath
+
+# Add pipx bin to current session PATH
+PIPX_BIN_DIR="$HOME/.local/bin"
+if [[ -d "$PIPX_BIN_DIR" ]]; then
+  export PATH="$PIPX_BIN_DIR:$PATH"
+fi
+
+# Check if piper is available now
 if ! command -v piper &> /dev/null; then
-  echo ""
-  echo "❌ Installation completed but piper command not found in PATH"
-  echo ""
-  echo "   Try running: pipx ensurepath"
-  echo "   Then restart your terminal"
-  exit 1
+  # Try to find piper in the pipx installation directory
+  if [[ -f "$PIPX_BIN_DIR/piper" ]]; then
+    echo "✅ Piper installed at: $PIPX_BIN_DIR/piper"
+
+    # Update shell configuration files
+    SHELL_CONFIG=""
+    if [[ -f "$HOME/.bashrc" ]]; then
+      SHELL_CONFIG="$HOME/.bashrc"
+    elif [[ -f "$HOME/.zshrc" ]]; then
+      SHELL_CONFIG="$HOME/.zshrc"
+    fi
+
+    if [[ -n "$SHELL_CONFIG" ]]; then
+      # Check if PATH update already exists
+      if ! grep -q "export PATH=\"\$HOME/.local/bin:\$PATH\"" "$SHELL_CONFIG"; then
+        echo "" >> "$SHELL_CONFIG"
+        echo "# Added by AgentVibes Piper installer" >> "$SHELL_CONFIG"
+        echo "export PATH=\"\$HOME/.local/bin:\$PATH\"" >> "$SHELL_CONFIG"
+        echo "✅ Updated $SHELL_CONFIG with PATH configuration"
+      fi
+    fi
+
+    # Make piper available in current session
+    export PATH="$PIPX_BIN_DIR:$PATH"
+
+    # Verify it's working
+    if "$PIPX_BIN_DIR/piper" --version &> /dev/null; then
+      echo "✅ Piper is working! You may need to restart your terminal or run:"
+      echo "   export PATH=\"\$HOME/.local/bin:\$PATH\""
+    else
+      echo "❌ Piper installed but not executing properly"
+      echo "   Please restart your terminal and try again"
+      exit 1
+    fi
+  else
+    echo ""
+    echo "❌ Installation completed but piper command not found"
+    echo ""
+    echo "   Try these steps:"
+    echo "   1. Run: pipx ensurepath"
+    echo "   2. Restart your terminal"
+    echo "   3. Run: export PATH=\"\$HOME/.local/bin:\$PATH\""
+    exit 1
+  fi
 fi
 
 echo ""
