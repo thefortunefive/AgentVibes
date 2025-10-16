@@ -178,10 +178,25 @@ else
   MODEL_ID="eleven_multilingual_v2"
 fi
 
+# Build JSON payload with jq for proper escaping
+PAYLOAD=$(jq -n \
+  --arg text "$TEXT" \
+  --arg model "$MODEL_ID" \
+  --arg lang "$LANGUAGE_CODE" \
+  '{
+    text: $text,
+    model_id: $model,
+    language_code: $lang,
+    voice_settings: {
+      stability: 0.5,
+      similarity_boost: 0.75
+    }
+  }')
+
 curl -s -X POST "https://api.elevenlabs.io/v1/text-to-speech/${VOICE_ID}" \
   -H "xi-api-key: ${API_KEY}" \
   -H "Content-Type: application/json" \
-  -d "{\"text\":\"${TEXT}\",\"model_id\":\"${MODEL_ID}\",\"language_code\":\"${LANGUAGE_CODE}\",\"voice_settings\":{\"stability\":0.5,\"similarity_boost\":0.75}}" \
+  -d "$PAYLOAD" \
   -o "${TEMP_FILE}"
 
 # @function add_silence_padding
@@ -211,13 +226,41 @@ if [ -f "${TEMP_FILE}" ]; then
   fi
 
   # @function play_audio
-  # @intent Play generated audio file using available player
-  # @why Support multiple audio players (paplay, aplay, mpg123)
-  # @param Uses global: $TEMP_FILE
-  # @sideeffects Plays audio in background
+  # @intent Play generated audio file using available player with sequential playback
+  # @why Support multiple audio players and prevent overlapping audio in learning mode
+  # @param Uses global: $TEMP_FILE, $CURRENT_LANGUAGE
+  # @sideeffects Plays audio with lock mechanism for sequential playback
   # @edgecases Falls through players until one works
+  LOCK_FILE="/tmp/agentvibes-audio.lock"
+
+  # Wait for previous audio to finish (max 30 seconds)
+  for i in {1..60}; do
+    if [ ! -f "$LOCK_FILE" ]; then
+      break
+    fi
+    sleep 0.5
+  done
+
+  # Track last target language audio for replay command
+  if [[ "$CURRENT_LANGUAGE" != "english" ]]; then
+    TARGET_AUDIO_FILE="${CLAUDE_PROJECT_DIR:-.}/.claude/last-target-audio.txt"
+    echo "${TEMP_FILE}" > "$TARGET_AUDIO_FILE"
+  fi
+
+  # Create lock and play audio
+  touch "$LOCK_FILE"
+
+  # Get audio duration for proper lock timing
+  DURATION=$(ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 "${TEMP_FILE}" 2>/dev/null)
+  DURATION=${DURATION%.*}  # Round to integer
+  DURATION=${DURATION:-1}   # Default to 1 second if detection fails
+
   # Play audio (WSL/Linux) in background to avoid blocking, fully detached
   (paplay "${TEMP_FILE}" || aplay "${TEMP_FILE}" || mpg123 "${TEMP_FILE}") >/dev/null 2>&1 &
+  PLAYER_PID=$!
+
+  # Wait for audio to finish, then release lock
+  (sleep $DURATION; rm -f "$LOCK_FILE") &
   disown
 
   # Keep temp files for later review - cleaned up weekly by cron
