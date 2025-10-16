@@ -227,12 +227,40 @@ if command -v ffmpeg &> /dev/null; then
 fi
 
 # @function play_audio
-# @intent Play generated audio using available player
-# @why Support multiple audio players
-# @param Uses global: $TEMP_FILE
-# @sideeffects Plays audio in background
-# Play audio (WSL/Linux) in background, fully detached
+# @intent Play generated audio using available player with sequential playback
+# @why Support multiple audio players and prevent overlapping audio in learning mode
+# @param Uses global: $TEMP_FILE, $CURRENT_LANGUAGE
+# @sideeffects Plays audio with lock mechanism for sequential playback
+LOCK_FILE="/tmp/agentvibes-audio.lock"
+
+# Wait for previous audio to finish (max 30 seconds)
+for i in {1..60}; do
+  if [ ! -f "$LOCK_FILE" ]; then
+    break
+  fi
+  sleep 0.5
+done
+
+# Track last target language audio for replay command
+if [[ "$CURRENT_LANGUAGE" != "english" ]]; then
+  TARGET_AUDIO_FILE="${CLAUDE_PROJECT_DIR:-.}/.claude/last-target-audio.txt"
+  echo "$TEMP_FILE" > "$TARGET_AUDIO_FILE"
+fi
+
+# Create lock and play audio
+touch "$LOCK_FILE"
+
+# Get audio duration for proper lock timing
+DURATION=$(ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 "$TEMP_FILE" 2>/dev/null)
+DURATION=${DURATION%.*}  # Round to integer
+DURATION=${DURATION:-1}   # Default to 1 second if detection fails
+
+# Play audio in background
 (mpv "$TEMP_FILE" || aplay "$TEMP_FILE" || paplay "$TEMP_FILE") >/dev/null 2>&1 &
+PLAYER_PID=$!
+
+# Wait for audio to finish, then release lock
+(sleep $DURATION; rm -f "$LOCK_FILE") &
 disown
 
 echo "🎵 Saved to: $TEMP_FILE"
