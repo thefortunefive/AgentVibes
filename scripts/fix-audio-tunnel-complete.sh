@@ -1,44 +1,27 @@
 #!/bin/bash
 # Complete Audio Tunnel Fix Script
-# Fixes audio tunnel issues between remote server and Windows WSL
+# Fixes audio tunnel issues between ubuntu-rdp and Windows WSL
 # Updated: 2025-10-16 - Handles stale SSH processes and socat bridge
 
 set -e
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-CONFIG_FILE="${SCRIPT_DIR}/audio-tunnel.config"
-
-# Load configuration if it exists, otherwise use defaults
-if [ -f "$CONFIG_FILE" ]; then
-    source "$CONFIG_FILE"
-else
-    # Default values (can be overridden by config)
-    REMOTE_HOST="${REMOTE_HOST:-ubuntu-rdp}"
-    TUNNEL_PORT="${TUNNEL_PORT:-14713}"
-    PULSE_SOCKET="${PULSE_SOCKET:-/mnt/wslg/PulseServer}"
-fi
+REMOTE_HOST="ubuntu-rdp"
+TUNNEL_PORT="14713"
 
 echo "🔧 Complete Audio Tunnel Fix"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo ""
 
-# Detect if we're running on WSL or remote server
+# Detect if we're running on WSL or ubuntu-rdp
 if grep -qi microsoft /proc/version 2>/dev/null; then
     RUNNING_ON="wsl"
     echo "📍 Detected: Running on WSL (Windows side)"
-elif [ -n "$SSH_CONNECTION" ] || [ -n "$SSH_CLIENT" ]; then
-    RUNNING_ON="remote"
-    echo "📍 Detected: Running on remote server"
+elif [ -f /etc/hostname ] && grep -q "ubuntu-rdp" /etc/hostname; then
+    RUNNING_ON="ubuntu-rdp"
+    echo "📍 Detected: Running on ubuntu-rdp (Remote server)"
 else
-    # Check if hostname matches REMOTE_HOST
-    CURRENT_HOST=$(hostname)
-    if [ "$CURRENT_HOST" = "$REMOTE_HOST" ]; then
-        RUNNING_ON="remote"
-        echo "📍 Detected: Running on remote server ($REMOTE_HOST)"
-    else
-        RUNNING_ON="wsl"
-        echo "📍 Assumed: Running on WSL (use config file to customize)"
-    fi
+    RUNNING_ON="unknown"
+    echo "⚠️  Warning: Could not detect environment"
 fi
 
 echo ""
@@ -87,7 +70,7 @@ fix_socat_bridge() {
         sleep 1
 
         # Start socat in background
-        nohup socat "TCP-LISTEN:${TUNNEL_PORT},fork,reuseaddr" "UNIX-CONNECT:${PULSE_SOCKET}" \
+        nohup socat "TCP-LISTEN:${TUNNEL_PORT},fork,reuseaddr" "UNIX-CONNECT:/mnt/wslg/PulseServer" \
             > /tmp/socat-audio-${TUNNEL_PORT}.log 2>&1 &
 
         sleep 2
@@ -194,8 +177,8 @@ if [ "$RUNNING_ON" = "wsl" ]; then
     echo "  echo 'export PULSE_SERVER=tcp:localhost:${TUNNEL_PORT}' >> ~/.bashrc"
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 
-elif [ "$RUNNING_ON" = "remote" ]; then
-    echo "🔄 Running local fix on remote server..."
+elif [ "$RUNNING_ON" = "ubuntu-rdp" ]; then
+    echo "🔄 Running local fix on ubuntu-rdp..."
     echo ""
 
     # Kill any process using port 14713
@@ -258,7 +241,7 @@ elif [ "$RUNNING_ON" = "remote" ]; then
         echo "❌ Timeout: Tunnel did not come up after ${TIMEOUT} seconds"
         echo ""
         echo "   Run this from Windows/WSL to fix:"
-        echo "   wsl bash /path/to/fix-audio-tunnel.sh"
+        echo "   wsl bash /path/to/fix-audio-tunnel-complete.sh"
         echo ""
         exit 1
     fi
@@ -266,8 +249,7 @@ elif [ "$RUNNING_ON" = "remote" ]; then
 else
     echo "❌ Unknown environment. This script should run on either:"
     echo "   - WSL (Windows Subsystem for Linux)"
-    echo "   - Remote server (configured as REMOTE_HOST in config file)"
+    echo "   - ubuntu-rdp (Remote server)"
     echo ""
-    echo "Create audio-tunnel.config from audio-tunnel.config.example"
     exit 1
 fi
