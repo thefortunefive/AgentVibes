@@ -1335,6 +1335,24 @@ program
     await installMCP();
   });
 
+program
+  .command('agentvibes-mcp-server')
+  .description('Start AgentVibes MCP server')
+  .action(async () => {
+    // Run the bash wrapper script
+    const mcpServerScript = path.join(__dirname, '..', 'bin', 'mcp-server');
+
+    try {
+      const { execSync } = await import('node:child_process');
+      execSync(`bash "${mcpServerScript}"`, {
+        stdio: 'inherit',
+        env: process.env
+      });
+    } catch (error) {
+      process.exit(error.status || 1);
+    }
+  });
+
 program.parse(process.argv);
 
 // Show help if no command provided
