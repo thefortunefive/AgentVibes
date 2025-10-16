@@ -123,6 +123,20 @@ Instead of remembering slash commands like `/agent-vibes:switch Aria`, just say:
   - The MCP server will automatically install Python packages (mcp, pipx, Piper TTS)
   - But Python 3 itself must be installed first by you
 
+**Step 1: Set Your ElevenLabs API Key (Windows)**
+
+Open Command Prompt or PowerShell and run:
+```cmd
+setx ELEVENLABS_API_KEY "your-api-key-here"
+```
+
+**Important:** After running `setx`, you must:
+1. Close Claude Desktop completely (if running)
+2. Open a **new** terminal window (the variable won't be available in current terminal)
+3. Restart Claude Desktop
+
+**Step 2: Configure Claude Desktop**
+
 Add to `~/Library/Application Support/Claude/claude_desktop_config.json` (macOS) or `%APPDATA%\Claude\claude_desktop_config.json` (Windows):
 
 ```json
@@ -130,14 +144,13 @@ Add to `~/Library/Application Support/Claude/claude_desktop_config.json` (macOS)
   "mcpServers": {
     "agentvibes": {
       "command": "npx",
-      "args": ["-y", "agentvibes-mcp-server"],
-      "env": {
-        "ELEVENLABS_API_KEY": "${ELEVENLABS_API_KEY}"
-      }
+      "args": ["-y", "agentvibes@beta", "agentvibes-mcp-server"]
     }
   }
 }
 ```
+
+**Note:** The `env` section is optional. Claude Desktop automatically inherits Windows environment variables, so if you've set `ELEVENLABS_API_KEY` with `setx`, it will be available automatically.
 
 #### For Warp Terminal
 
@@ -147,7 +160,7 @@ Add to `~/.warp/mcp.json`:
 {
   "agentvibes": {
     "command": "npx",
-    "args": ["-y", "agentvibes-mcp-server"],
+    "args": ["-y", "agentvibes@beta", "agentvibes-mcp-server"],
     "env": {
       "ELEVENLABS_API_KEY": "${ELEVENLABS_API_KEY}"
     }
@@ -164,7 +177,7 @@ Add to `.mcp-minimal.json` in your project:
   "mcpServers": {
     "agentvibes": {
       "command": "npx",
-      "args": ["-y", "agentvibes-mcp-server"],
+      "args": ["-y", "agentvibes@beta", "agentvibes-mcp-server"],
       "env": {
         "ELEVENLABS_API_KEY": "${ELEVENLABS_API_KEY}"
       }
