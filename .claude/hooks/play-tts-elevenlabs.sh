@@ -348,6 +348,16 @@ if [ -f "${TEMP_FILE}" ]; then
   DURATION=${DURATION%.*}  # Round to integer
   DURATION=${DURATION:-1}   # Default to 1 second if detection fails
 
+  # Convert to 48kHz stereo WAV for better SSH tunnel compatibility
+  # ElevenLabs returns 44.1kHz mono MP3, which causes static over SSH audio tunnels
+  # Converting to 48kHz stereo (Windows/PulseAudio native format) eliminates the static
+  if [[ -n "$SSH_CONNECTION" ]] || [[ -n "$SSH_CLIENT" ]] || [[ -n "$VSCODE_IPC_HOOK_CLI" ]]; then
+    CONVERTED_FILE="${TEMP_FILE%.mp3}.wav"
+    if ffmpeg -i "${TEMP_FILE}" -ar 48000 -ac 2 "${CONVERTED_FILE}" -y 2>/dev/null; then
+      TEMP_FILE="${CONVERTED_FILE}"
+    fi
+  fi
+
   # Play audio (WSL/Linux) in background to avoid blocking, fully detached
   (paplay "${TEMP_FILE}" || aplay "${TEMP_FILE}" || mpg123 "${TEMP_FILE}") >/dev/null 2>&1 &
   PLAYER_PID=$!
