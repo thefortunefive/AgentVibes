@@ -378,26 +378,9 @@ AgentVibes provides **50+ slash commands** and **natural language MCP equivalent
 
 **🎯 Learn Spanish (or 30+ languages) while you program!** 🌍
 
-AgentVibes' Language Learning Mode is a **breakthrough feature** - every task acknowledgment plays **twice**: first in English, then in your target language.
+Every task acknowledgment plays **twice** - first in English, then in your target language. Context-based learning while you code!
 
-**Quick Start:**
-```bash
-/agent-vibes:target spanish     # Set target language
-/agent-vibes:learn              # Enable learning mode
-# Now code normally - hear everything in English, then Spanish!
-```
-
-**Why it works:**
-- **Context-based** - Learn programming terms in real situations
-- **Spaced repetition** - Natural exposure throughout your coding day
-- **Adjustable speed** - Slow down target language for comprehension
-- **Zero effort** - Learning happens automatically while you code
-
-**Real-world impact:**
-- Traditional: 30 minutes Duolingo ("The apple is red")
-- AgentVibes: 8 hours coding = hundreds of contextual phrases
-
-**[→ View Complete Learning Mode Guide](docs/language-learning-mode.md)** - Full tutorial, commands, speech rate control, supported languages, and pro tips
+**[→ View Complete Learning Mode Guide](docs/language-learning-mode.md)** - Full tutorial, quick start, commands, speech rate control, supported languages, and pro tips
 
 [↑ Back to top](#-table-of-contents)
 
