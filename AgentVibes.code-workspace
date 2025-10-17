@@ -1,0 +1,258 @@
+{
+  "folders": [
+    {
+      "path": ".",
+      "name": "🎤 AgentVibes - Root"
+    },
+    {
+      "path": "src",
+      "name": "📝 Source Code"
+    },
+    {
+      "path": ".claude",
+      "name": "🤖 Claude Config"
+    },
+    {
+      "path": ".claude/commands",
+      "name": "⚡ Slash Commands"
+    },
+    {
+      "path": ".claude/hooks",
+      "name": "🔗 TTS Hooks & Managers"
+    },
+    {
+      "path": ".claude/personalities",
+      "name": "🎭 Voice Personalities"
+    },
+    {
+      "path": ".bmad-core",
+      "name": "🧠 BMAD Core"
+    },
+    {
+      "path": "docs",
+      "name": "📚 Documentation"
+    },
+    {
+      "path": "scripts",
+      "name": "🔧 Scripts & Tools"
+    },
+    {
+      "path": "templates",
+      "name": "📄 Templates"
+    },
+    {
+      "path": ".github",
+      "name": "🐙 GitHub Actions"
+    },
+    {
+      "path": "demo-audio",
+      "name": "🎵 Demo Audio"
+    },
+    {
+      "path": "test",
+      "name": "🧪 Tests"
+    },
+    {
+      "path": "agentvibes.org/Screenshots",
+      "name": "📸 Screenshots"
+    }
+  ],
+  "settings": {
+    "workbench.colorCustomizations": {
+      "titleBar.activeBackground": "#8b5cf6",
+      "titleBar.activeForeground": "#ffffff",
+      "titleBar.inactiveBackground": "#6d28d9",
+      "titleBar.inactiveForeground": "#d8b4fe",
+      "activityBar.background": "#7c3aed",
+      "activityBar.foreground": "#ffffff",
+      "activityBar.inactiveForeground": "#c4b5fd",
+      "activityBar.activeBorder": "#a78bfa",
+      "activityBar.activeBackground": "#8b5cf620",
+      "statusBar.background": "#8b5cf6",
+      "statusBar.foreground": "#ffffff",
+      "statusBar.noFolderBackground": "#7c3aed",
+      "statusBar.debuggingBackground": "#a855f7",
+      "statusBar.debuggingForeground": "#ffffff",
+      "editorGroupHeader.tabsBackground": "#2c2c2c",
+      "tab.activeBorderTop": "#8b5cf6",
+      "tab.activeBackground": "#8b5cf620",
+      "tab.inactiveBackground": "#2c2c2c",
+      "panel.border": "#8b5cf6",
+      "sideBar.border": "#8b5cf630",
+      "sideBarTitle.foreground": "#8b5cf6",
+      "sideBarSectionHeader.background": "#8b5cf620",
+      "sideBarSectionHeader.foreground": "#8b5cf6",
+      "list.activeSelectionBackground": "#8b5cf640",
+      "list.activeSelectionForeground": "#ffffff",
+      "list.hoverBackground": "#8b5cf620",
+      "list.inactiveSelectionBackground": "#8b5cf630",
+      "tree.indentGuidesStroke": "#8b5cf640",
+      "gitDecoration.addedResourceForeground": "#73c991",
+      "gitDecoration.modifiedResourceForeground": "#8b5cf6",
+      "gitDecoration.deletedResourceForeground": "#ff6b6b",
+      "gitDecoration.untrackedResourceForeground": "#ffd93d",
+      "gitDecoration.ignoredResourceForeground": "#606060",
+      "gitDecoration.conflictingResourceForeground": "#ff69b4"
+    },
+    "window.title": "🎤 AgentVibes ${separator} ${activeEditorShort}",
+    "editor.fontSize": 14,
+    "editor.fontFamily": "'Fira Code', 'Cascadia Code', Consolas, 'Courier New', monospace",
+    "editor.fontLigatures": true,
+    "editor.formatOnSave": true,
+    "editor.rulers": [80, 120],
+    "editor.wordWrap": "on",
+    "editor.minimap.enabled": true,
+    "terminal.integrated.fontSize": 13,
+    "terminal.integrated.scrollback": 10000,
+    "files.autoSave": "afterDelay",
+    "files.autoSaveDelay": 5000,
+    "files.trimTrailingWhitespace": true,
+    "files.insertFinalNewline": true,
+    "search.exclude": {
+      "**/node_modules": true,
+      "**/.git": true,
+      "**/.claude/audio": true,
+      "**/dist": true,
+      "**/build": true,
+      "**/.vscode": false,
+      "**/package-lock.json": true
+    },
+    "files.exclude": {
+      "**/.git": true,
+      "**/.DS_Store": true,
+      "**/node_modules": false,
+      "**/.claude/audio": true
+    },
+    "explorer.fileNesting.enabled": true,
+    "explorer.fileNesting.patterns": {
+      "package.json": "package-lock.json, yarn.lock, pnpm-lock.yaml, .npmrc",
+      "README.md": "LICENSE, CONTRIBUTING.md, CODE_OF_CONDUCT.md, SECURITY.md",
+      ".gitignore": ".gitattributes, .gitmodules, .mailmap",
+      "tsconfig.json": "tsconfig.*.json",
+      ".env": ".env.*"
+    },
+    "explorer.sortOrder": "type",
+    "explorer.compactFolders": false,
+    "git.autofetch": true,
+    "git.confirmSync": false,
+    "git.enableSmartCommit": true,
+    "[javascript]": {
+      "editor.defaultFormatter": "esbenp.prettier-vscode"
+    },
+    "[json]": {
+      "editor.defaultFormatter": "esbenp.prettier-vscode"
+    },
+    "[markdown]": {
+      "editor.defaultFormatter": "esbenp.prettier-vscode"
+    }
+  },
+  "tasks": {
+    "version": "2.0.0",
+    "tasks": [
+      {
+        "label": "🎤 Install AgentVibes",
+        "type": "shell",
+        "command": "npm",
+        "args": ["install"],
+        "group": "build",
+        "problemMatcher": [],
+        "presentation": {
+          "reveal": "always",
+          "panel": "new"
+        }
+      },
+      {
+        "label": "🧪 Run Tests",
+        "type": "shell",
+        "command": "npm",
+        "args": ["test"],
+        "group": "test",
+        "problemMatcher": [],
+        "presentation": {
+          "reveal": "always",
+          "panel": "new"
+        }
+      },
+      {
+        "label": "🔊 Test Voice",
+        "type": "shell",
+        "command": ".claude/hooks/play-tts.sh",
+        "args": ["'Hello from AgentVibes workspace!'"],
+        "group": "none",
+        "problemMatcher": [],
+        "presentation": {
+          "reveal": "always",
+          "panel": "new"
+        }
+      },
+      {
+        "label": "📦 Build Package",
+        "type": "shell",
+        "command": "npm",
+        "args": ["run", "build"],
+        "group": "build",
+        "problemMatcher": [],
+        "presentation": {
+          "reveal": "always",
+          "panel": "new"
+        }
+      },
+      {
+        "label": "🔍 Check Version",
+        "type": "shell",
+        "command": "npm",
+        "args": ["version"],
+        "group": "none",
+        "problemMatcher": [],
+        "presentation": {
+          "reveal": "always",
+          "panel": "new"
+        }
+      }
+    ]
+  },
+  "launch": {
+    "version": "0.2.0",
+    "configurations": [
+      {
+        "type": "node",
+        "request": "launch",
+        "name": "🎤 Debug Installer",
+        "skipFiles": ["<node_internals>/**"],
+        "program": "${workspaceFolder}/src/installer.js",
+        "args": ["install"],
+        "console": "integratedTerminal",
+        "outFiles": ["${workspaceFolder}/**/*.js"]
+      },
+      {
+        "type": "node",
+        "request": "launch",
+        "name": "🧪 Debug Tests",
+        "skipFiles": ["<node_internals>/**"],
+        "program": "${workspaceFolder}/node_modules/.bin/jest",
+        "args": ["--runInBand"],
+        "console": "integratedTerminal",
+        "outFiles": ["${workspaceFolder}/**/*.js"]
+      }
+    ]
+  },
+  "extensions": {
+    "recommendations": [
+      "dbaeumer.vscode-eslint",
+      "esbenp.prettier-vscode",
+      "github.vscode-pull-request-github",
+      "eamodio.gitlens",
+      "visualstudioexptteam.vscodeintellicode",
+      "christian-kohler.npm-intellisense",
+      "christian-kohler.path-intellisense",
+      "yzhang.markdown-all-in-one",
+      "davidanson.vscode-markdownlint",
+      "streetsidesoftware.code-spell-checker",
+      "alefragnani.project-manager",
+      "gruntfuggly.todo-tree",
+      "ms-vscode.vscode-typescript-next",
+      "ms-vscode.terminal-keeper",
+      "pkief.material-icon-theme"
+    ]
+  }
+}
