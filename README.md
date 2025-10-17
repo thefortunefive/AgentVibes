@@ -331,114 +331,19 @@ source ~/.bashrc
 
 ## 🎭 Multi-Provider Support
 
-AgentVibes v2.0 introduces **multi-provider TTS support** - choose between premium ElevenLabs AI voices or free offline Piper TTS!
+AgentVibes supports **two TTS providers** - choose between premium ElevenLabs AI voices or free offline Piper TTS!
 
-### 🎤 ElevenLabs (Premium AI Voices)
+**Quick Comparison:**
+- **ElevenLabs**: 150+ premium voices, 30+ languages, studio-quality (requires API key, $0-99/month)
+- **Piper TTS**: 50+ neural voices, 18 languages, completely free, works offline (no API key needed)
 
-**Features:**
-- 150+ professional AI voices
-- 30+ languages with multilingual v2 model
-- Studio-quality audio with emotional range
-- Character voices, accents, and unique personalities
-- Voices include: Aria, Archer, Cowboy Bob, Pirate Marshal, Grandpa Spuds, Jessica Anne Bogart, and more!
-
-**Requirements:**
-- ElevenLabs API key (get free tier at [elevenlabs.io](https://elevenlabs.io))
-- Internet connection for API calls
-
-**Pricing (2025):**
-- Free: 10,000 chars/month (light use)
-- Starter: $5/month - 30,000 chars
-- Creator: $22/month - 100,000 chars
-- Pro: $99/month - 500,000 chars
-
-### 🆓 Piper TTS (Free, Offline)
-
-**Features:**
-- 50+ neural voices, completely free
-- 18 languages supported
-- No API key required
-- Works offline (perfect for Windows, WSL, and Linux)
-- Privacy-focused local processing
-- Cross-platform support (Windows, macOS, Linux)
-
-**Requirements:**
-- None! Works out of the box
-- Automatic voice download on first use
-- Native Windows support - no additional setup needed
-
-### Provider Commands
-
+**Switch providers anytime:**
 ```bash
-# View current provider
-/agent-vibes:provider info
-# MCP: "What's my current TTS provider?" or "Show provider info"
-
-# List available providers
-/agent-vibes:provider list
-# MCP: "List all TTS providers" or "What providers are available?"
-
-# Switch providers instantly
 /agent-vibes:provider switch
-# MCP: "Switch to Piper TTS" or "Change provider to ElevenLabs"
-
-# Test provider functionality
-/agent-vibes:provider test
-# MCP: "Test my TTS provider" or "Test ElevenLabs connection"
+# Or: "Switch to Piper TTS" (MCP)
 ```
 
-### Switching Between Providers
-
-**During Installation:**
-The installer asks which provider you prefer and sets it up automatically.
-
-**After Installation:**
-```bash
-# Switch to Piper TTS (free)
-/agent-vibes:provider switch
-# Select: piper
-
-# Switch to ElevenLabs (premium)
-/agent-vibes:provider switch
-# Select: elevenlabs
-```
-
-**Automatic Fallback:**
-If ElevenLabs API key is missing, AgentVibes automatically falls back to Piper TTS.
-
-### Provider Comparison
-
-| Feature | ElevenLabs | Piper TTS |
-|---------|-----------|-----------|
-| **Voices** | 150+ premium AI | 50+ neural voices |
-| **Cost** | $0-99/month | Free forever |
-| **Quality** | Studio-grade | High-quality neural |
-| **Languages** | 30+ with multilingual v2 | 18 languages |
-| **Offline** | ❌ Requires internet | ✅ Works offline |
-| **API Key** | ✅ Required | ❌ Not needed |
-| **Emotional Range** | ✅ Advanced | ⚠️ Limited |
-| **Character Voices** | ✅ Extensive library | ⚠️ Standard voices |
-| **Platform Support** | All platforms | Windows, macOS, Linux, WSL |
-| **Best For** | Production, demos, variety | Development, privacy, Windows users |
-
-### Which Provider Should I Choose?
-
-**Choose ElevenLabs if:**
-- You want premium studio-quality voices
-- You need extensive character voice variety
-- You're creating demos or production content
-- You want advanced emotional range
-- You have a budget for API costs
-
-**Choose Piper TTS if:**
-- You want completely free TTS (especially great for Windows!)
-- You prefer offline/local processing
-- You're on Windows, WSL, or Linux
-- You value privacy and data control
-- You're in development/testing phase
-- You don't want to manage API keys or billing
-
-**Pro Tip:** Use Piper for development and ElevenLabs for production/demos!
+**[→ View Complete Provider Guide](docs/providers.md)** - Full comparison, pricing, features, and setup instructions
 
 [↑ Back to top](#-table-of-contents)
 
@@ -446,67 +351,24 @@ If ElevenLabs API key is missing, AgentVibes automatically falls back to Piper T
 
 ## 🎤 Commands Reference
 
-All commands are prefixed with `/agent-vibes:`
+AgentVibes provides **50+ slash commands** and **natural language MCP equivalents**.
 
-### Voice Commands
+**Quick Examples:**
+```bash
+# Voice control
+/agent-vibes:switch Aria              # Or: "Switch to Aria voice"
+/agent-vibes:list                     # Or: "List all voices"
 
-| Command | AgentVibes MCP Equivalent | Description |
-|---------|----------------|-------------|
-| `/agent-vibes:list` | "List all voices" or "What voices are available?" | Show all available voices |
-| `/agent-vibes:switch <voice>` | "Switch to Aria voice" or "Change voice to Cowboy Bob" | Change to a different voice |
-| `/agent-vibes:whoami` | "What's my current voice?" or "Show my configuration" | Show current voice, sentiment & personality |
-| `/agent-vibes:preview [N]` | "Preview voices" or "Let me hear the first 5 voices" | Preview voices with audio samples |
-| `/agent-vibes:sample <voice>` | "Test Aria voice" or "Let me hear Cowboy Bob" | Test a specific voice |
-| `/agent-vibes:add <name> <id>` | "Add custom voice MyVoice with ID abc123" | Add custom ElevenLabs voice |
-| `/agent-vibes:replay [N]` | "Replay last message" or "Replay the 3rd message" | Replay recent TTS audio |
-| `/agent-vibes:get` | "What voice am I using?" or "Get current voice" | Get currently selected voice |
+# Personality & sentiment
+/agent-vibes:personality pirate       # Or: "Set personality to pirate"
+/agent-vibes:sentiment sarcastic      # Or: "Apply sarcastic sentiment"
 
-### System Commands
+# Language & learning
+/agent-vibes:set-language spanish     # Or: "Speak in Spanish"
+/agent-vibes:learn                    # Or: "Enable learning mode"
+```
 
-| Command | AgentVibes MCP Equivalent | Description |
-|---------|----------------|-------------|
-| `/agent-vibes:version` | "What version of AgentVibes?" or "Show version" | Show installed AgentVibes version |
-| `/agent-vibes:update [--yes]` | "Update AgentVibes" or "Upgrade to latest version" | Update to latest version |
-
-### Personality Commands
-
-| Command | AgentVibes MCP Equivalent | Description |
-|---------|----------------|-------------|
-| `/agent-vibes:personality <name>` | "Set personality to pirate" or "Change to sarcastic personality" | Set personality (changes voice + style) |
-| `/agent-vibes:personality list` | "List all personalities" or "What personalities are available?" | Show all personalities |
-| `/agent-vibes:personality add <name>` | "Create custom personality called mycustom" | Create custom personality |
-| `/agent-vibes:personality edit <name>` | "Edit the flirty personality" | Edit personality file |
-| `/agent-vibes:personality get` | "What's my current personality?" or "Show personality" | Show current personality |
-| `/agent-vibes:personality reset` | "Reset personality to normal" or "Remove personality" | Reset to normal |
-
-### Sentiment Commands
-
-| Command | AgentVibes MCP Equivalent | Description |
-|---------|----------------|-------------|
-| `/agent-vibes:sentiment <name>` | "Apply sarcastic sentiment" or "Add flirty sentiment to voice" | Apply sentiment to current voice |
-| `/agent-vibes:sentiment list` | "List all sentiments" or "What sentiments are available?" | Show all available sentiments |
-| `/agent-vibes:sentiment get` | "What's my current sentiment?" or "Show sentiment" | Show current sentiment |
-| `/agent-vibes:sentiment clear` | "Clear sentiment" or "Remove sentiment" | Remove sentiment |
-
-### Language Commands
-
-| Command | AgentVibes MCP Equivalent | Description |
-|---------|----------------|-------------|
-| `/agent-vibes:set-language <language>` | "Speak in Spanish" or "Change language to French" | Set TTS language (30+ supported) |
-| `/agent-vibes:set-language english` | "Reset to English" or "Change language to English" | Reset to English |
-| `/agent-vibes:set-language list` | "List all languages" or "What languages are supported?" | Show all supported languages |
-| `/agent-vibes:whoami` | "What's my current language?" or "Show configuration" | Show current language + voice |
-
-### BMAD Plugin Commands
-
-| Command | AgentVibes MCP Equivalent | Description |
-|---------|----------------|-------------|
-| `/agent-vibes-bmad status` | "Show BMAD plugin status" or "What's the BMAD configuration?" | Show BMAD plugin status & mappings |
-| `/agent-vibes-bmad enable` | "Enable BMAD voice plugin" or "Turn on BMAD voices" | Enable automatic voice switching |
-| `/agent-vibes-bmad disable` | "Disable BMAD plugin" or "Turn off BMAD voices" | Disable plugin (restores previous settings) |
-| `/agent-vibes-bmad list` | "List BMAD agent voices" or "Show BMAD voice mappings" | List all BMAD agent voice mappings |
-| `/agent-vibes-bmad set <agent> <voice> [personality]` | "Set PM agent to Aria voice with zen personality" | Update agent mapping |
-| `/agent-vibes-bmad edit` | "Edit BMAD configuration" or "Open BMAD voice config" | Edit configuration file |
+**[→ View Complete Command Reference](docs/commands.md)** - All voice, system, personality, sentiment, language, and BMAD commands with MCP equivalents
 
 [↑ Back to top](#-table-of-contents)
 
@@ -641,52 +503,30 @@ Spanish, French, German, Italian, Portuguese, Chinese, Japanese, Korean, Russian
 
 ## 🎭 Personalities vs Sentiments
 
+**Two ways to add personality to Claude's voice:**
+
 ### 🎪 Personalities (Voice + Style)
+Changes **both** voice AND how Claude talks. Each personality has a dedicated voice.
 
-**Personalities change BOTH voice AND how Claude talks.** Each has a dedicated ElevenLabs voice:
-
-| Personality | Voice | Style |
-|------------|-------|-------|
-| **sarcastic** | Jessica Anne Bogart | Dry wit and cutting observations |
-| **flirty** | Jessica Anne Bogart | Playful charm and compliments |
-| **pirate** | Pirate Marshal | Seafaring swagger - "Arr matey!" |
-| **grandpa** | Grandpa Spuds Oxley | Rambling nostalgic stories |
-| **dry-humor** | Aria | British wit and deadpan delivery |
-| **angry** | Demon Monster | Frustrated and loud |
-| **robot** | Dr. Von Fusion | Mechanical and precise |
-| **zen** | Aria | Peaceful and mindful |
-| **professional** | Matthew Schmitz | Formal and corporate |
-
-**All 19 personalities:** sarcastic, flirty, pirate, grandpa, dry-humor, angry, robot, zen, professional, dramatic, millennial, surfer-dude, sassy, poetic, moody, funny, annoying, crass, normal, random
+**Examples:** `sarcastic`, `pirate`, `grandpa`, `flirty`, `zen`, `robot`
 
 ```bash
-/agent-vibes:personality sarcastic
-/agent-vibes:personality pirate
-/agent-vibes:personality list
+/agent-vibes:personality pirate       # Uses Pirate Marshal voice + pirate speak
 ```
 
 ### 💭 Sentiments (Style Only)
-
-**Sentiments apply personality styles to YOUR current voice:**
+Applies personality style to **your current voice** without changing it.
 
 ```bash
-# Use YOUR voice with sarcastic attitude
-/agent-vibes:sentiment sarcastic
-
-# Clear sentiment
-/agent-vibes:sentiment clear
+/agent-vibes:switch Aria              # Set voice
+/agent-vibes:sentiment sarcastic      # Add sarcasm to Aria
 ```
 
 **Key Difference:**
-- **Personality** = Changes voice + style (e.g., Pirate Marshal + pirate speak)
-- **Sentiment** = Keeps your voice + adds style (e.g., Your Voice + sarcasm)
+- **Personality** = Changes voice + style
+- **Sentiment** = Keeps your voice + adds style
 
-### 🎤 Combine Voice + Sentiment
-
-```bash
-# Switch to Aria with sarcastic sentiment
-/agent-vibes:switch Aria --sentiment sarcastic
-```
+**[→ View Complete Personalities Guide](docs/personalities.md)** - All 19 personalities, voice mappings, and how to create custom ones
 
 [↑ Back to top](#-table-of-contents)
 
@@ -804,48 +644,21 @@ Make Claude speak in **30+ languages** using multilingual voices:
 
 ## 🔧 Advanced Features
 
-### Custom Personalities
+AgentVibes supports **custom personalities**, **custom voices**, and **integration with custom output styles**.
 
-1. Create new personality:
-   ```bash
-   /agent-vibes:personality add mycustom
-   ```
-
-2. Edit `.claude/personalities/mycustom.md`:
-   ```markdown
-   ---
-   name: mycustom
-   description: My style
-   voice: Aria
-   ---
-
-   ## AI Instructions
-   Speak in your unique style...
-   ```
-
-3. Use it:
-   ```bash
-   /agent-vibes:personality mycustom
-   ```
-
-### Add Custom Voices
-
+**Quick Examples:**
 ```bash
-# Get voice ID from elevenlabs.io
+# Create custom personality
+/agent-vibes:personality add mycustom
+
+# Add custom ElevenLabs voice
 /agent-vibes:add "My Voice" abc123xyz789
-```
 
-### Use in Custom Output Styles
-
-```markdown
-I'll do the task
+# Use in custom output styles
 [Bash: .claude/hooks/play-tts.sh "Starting" "Aria"]
-
-... work ...
-
-✅ Done
-[Bash: .claude/hooks/play-tts.sh "Complete" "Cowboy Bob"]
 ```
+
+**[→ View Advanced Features Guide](docs/advanced-features.md)** - Custom personalities, custom voices, output style integration
 
 [↑ Back to top](#-table-of-contents)
 
@@ -889,23 +702,15 @@ For detailed PulseAudio SSH tunnel configuration:
 
 ## 💰 Pricing & Usage
 
-### ElevenLabs Pricing (2025)
+**ElevenLabs Pricing (2025):**
+- **Free**: $0/month - 10,000 chars (light use)
+- **Starter**: $5/month - 30,000 chars (1-2 hrs/day)
+- **Creator**: $22/month - 100,000 chars (4-5 hrs/day)
+- **Pro**: $99/month - 500,000 chars (8+ hrs/day)
 
-| Plan | Monthly Cost | Characters/Month | Best For |
-|------|-------------|------------------|----------|
-| **Free** | $0 | 10,000 | Trying it out, light use |
-| **Starter** | $5 | 30,000 | Casual coding (1-2 hrs/day) |
-| **Creator** | $22 | 100,000 | Regular coding (4-5 hrs/day) |
-| **Pro** | $99 | 500,000 | Heavy daily use (8+ hrs/day) |
-| **Scale** | $330 | 2,000,000 | Professional/teams |
+**Monitor Usage:** [ElevenLabs Dashboard](https://elevenlabs.io/app/usage)
 
-### Monitor Your Usage
-
-**Track consumption in real-time:**
-
-1. **Go to ElevenLabs Dashboard**: https://elevenlabs.io/app/usage
-2. **Monitor**: Credits used, character breakdown, billing period
-3. **Set alerts**: Check usage weekly, watch for spikes
+**[→ View Complete Pricing Guide](docs/pricing.md)** - Full pricing breakdown, usage monitoring, and cost optimization tips
 
 [↑ Back to top](#-table-of-contents)
 
@@ -935,39 +740,19 @@ For detailed PulseAudio SSH tunnel configuration:
 
 ## ❓ Troubleshooting
 
-### No Audio Playing?
+**Common Issues:**
 
+**No Audio Playing?**
 1. Check API key: `echo $ELEVENLABS_API_KEY`
-2. Check output style: `/output-style agent-vibes`
-3. Test playback: `/agent-vibes:sample Aria`
+2. Enable output style: `/output-style agent-vibes`
+3. Test: `/agent-vibes:sample Aria`
 
-### Commands Not Found?
-
+**Commands Not Found?**
 ```bash
-# Verify installation
-npx agentvibes status
-
-# Reinstall
 npx agentvibes install --yes
 ```
 
-### Wrong Voice Playing?
-
-```bash
-# Check current setup
-/agent-vibes:whoami
-
-# Reset if needed
-/agent-vibes:personality reset
-/agent-vibes:sentiment clear
-```
-
-### MCP Not Working?
-
-1. **Check config file**: Verify JSON syntax in `claude_desktop_config.json` or `.mcp-minimal.json`
-2. **Restart app**: Close and reopen Claude Desktop/Warp/Claude Code
-3. **Check logs**: Look for MCP connection errors in app logs
-4. **Verify npx**: Run `npx -y agentvibes-mcp-server` manually to test
+**[→ View Complete Troubleshooting Guide](docs/troubleshooting.md)** - Solutions for audio issues, command problems, MCP errors, voice issues, and more
 
 [↑ Back to top](#-table-of-contents)
 
@@ -975,53 +760,23 @@ npx agentvibes install --yes
 
 ## 🔄 Updating
 
-### Quick Update (From Claude Code)
-
-The fastest way to update is directly from Claude Code:
-
+**Quick Update (From Claude Code):**
 ```bash
 /agent-vibes:update
 ```
 
-This checks for the latest version and updates with confirmation.
-
-### Alternative Methods
-
-#### If installed via npx:
+**Alternative Methods:**
 ```bash
+# Via npx
 npx agentvibes update --yes
+
+# Via npm (if installed globally)
+npm update -g agentvibes && agentvibes update --yes
 ```
 
-#### If installed globally via npm:
-```bash
-npm update -g agentvibes
-agentvibes update --yes
-```
+**Check Version:** `/agent-vibes:version`
 
-#### If installed from source:
-```bash
-cd ~/AgentVibes
-git pull origin master
-npm install
-node bin/agent-vibes update --yes
-```
-
-### Check Your Version
-
-```bash
-/agent-vibes:version
-```
-
-### What Gets Updated
-
-The update command will:
-- ✅ Update all slash commands
-- ✅ Update TTS scripts and plugins
-- ✅ Add new personalities (keeps your custom ones)
-- ✅ Update output styles
-- ✅ Update MCP server
-- ✅ Show recent changes and release notes
-- ⚠️  Preserves your voice settings and configurations
+**[→ View Complete Update Guide](docs/updating.md)** - All update methods, version checking, what gets updated, and troubleshooting
 
 [↑ Back to top](#-table-of-contents)
 
@@ -1101,47 +856,18 @@ If AgentVibes makes your coding more fun:
 
 ## 🗣️ Voice Library (Full List)
 
-### 🌍 Multilingual Voices (Supports 30+ Languages)
+AgentVibes includes **27 unique ElevenLabs voices** across three categories:
 
-Perfect for international projects! These voices work with Spanish, French, German, Italian, Portuguese, and many more languages using ElevenLabs' Multilingual v2 model.
+**🌍 Multilingual Voices (4)** - Support 30+ languages
+- Antoni, Rachel, Domi, Bella
 
-| Voice | Character | Languages | Best For |
-|-------|-----------|-----------|----------|
-| [Antoni](https://elevenlabs.io/voice-library/antoni/ErXwobaYiN019PkySvjV) | Well-balanced | 30+ | International, Spanish |
-| [Rachel](https://elevenlabs.io/voice-library/rachel/21m00Tcm4TlvDq8ikWAM) | Clear, professional | 30+ | Global communication, French |
-| [Domi](https://elevenlabs.io/voice-library/domi/AZnzlk1XvdvUeBnXmlld) | Strong, confident | 30+ | Leadership, German |
-| [Bella](https://elevenlabs.io/voice-library/bella/EXAVITQu4vr4xnSDxMaL) | Soft, engaging | 30+ | Friendly, Italian |
+**🗣️ Language-Optimized Voices (2)** - French, German, Spanish, Portuguese
+- Charlotte, Matilda
 
-### 🗣️ Language-Optimized Voices
+**🎭 English Character Voices (19)** - Personalities and unique characters
+- Aria, Archer, Cowboy Bob, Pirate Marshal, Grandpa Spuds, Jessica Anne Bogart, and more!
 
-| Voice | Character | Optimized For |
-|-------|-----------|---------------|
-| [Charlotte](https://elevenlabs.io/voice-library/charlotte/XB0fDUnXU5powFXDhCwa) | Expressive | French, German, Spanish |
-| [Matilda](https://elevenlabs.io/voice-library/matilda/XrExE9yKIg1WjnnlVkGX) | Warm | Spanish, Portuguese |
-
-### 🎭 English Character Voices
-
-| Voice | Character | Best For |
-|-------|-----------|----------|
-| [Aria](https://elevenlabs.io/voice-library/aria-professional-narration/TC0Zp7WVFzhA8zpTlRqV) | Clear professional | Default, all-purpose |
-| [Archer](https://elevenlabs.io/voice-library/archer/L0Dsvb3SLTyegXwtm47J) | Authoritative | Leadership, orchestration |
-| [Jessica Anne Bogart](https://elevenlabs.io/voice-library/jessica-anne-bogart/flHkNRp1BlvT73UL6gyz) | Wickedly eloquent | Sarcastic, flirty |
-| [Pirate Marshal](https://elevenlabs.io/voice-library/pirate-marshal/PPzYpIqttlTYA83688JI) | Authentic pirate | Pirate personality |
-| [Grandpa Spuds Oxley](https://elevenlabs.io/voice-library/grandpa-spuds-oxley/NOpBlnGInO9m6vDvFkFC) | Wise elder | Grandpa personality |
-| [Matthew Schmitz](https://elevenlabs.io/voice-library/matthew-schmitz/0SpgpJ4D3MpHCiWdyTg3) | Deep baritone | Professional |
-| [Cowboy Bob](https://elevenlabs.io/voice-library/cowboy-bob/KTPVrSVAEUSJRClDzBw7) | Western charm | Casual, friendly |
-| [Northern Terry](https://elevenlabs.io/voice-library/northern-terry/wo6udizrrtpIxWGp2qJk) | Eccentric British | Quirky responses |
-| [Ms. Walker](https://elevenlabs.io/voice-library/ms-walker/DLsHlh26Ugcm6ELvS0qi) | Warm teacher | Professional |
-| [Dr. Von Fusion](https://elevenlabs.io/voice-library/dr-von-fusion/yjJ45q8TVCrtMhEKurxY) | Mad scientist | Robot personality |
-| [Michael](https://elevenlabs.io/voice-library/michael/U1Vk2oyatMdYs096Ety7) | British urban | Professional |
-| [Ralf Eisend](https://elevenlabs.io/voice-library/ralf-eisend/A9evEp8yGjv4c3WsIKuY) | International | Multi-cultural |
-| [Amy](https://elevenlabs.io/voice-library/amy/bhJUNIXWQQ94l8eI2VUf) | Chinese accent | Diverse |
-| [Lutz Laugh](https://elevenlabs.io/voice-library/lutz-laugh/9yzdeviXkFddZ4Oz8Mok) | Jovial | Funny |
-| [Burt Reynolds](https://elevenlabs.io/voice-library/burt-reynolds/4YYIPFl9wE5c4L2eu2Gb) | Smooth baritone | Confident |
-| [Juniper](https://elevenlabs.io/voice-library/juniper/aMSt68OGf4xUZAnLpTU8) | Warm, friendly | Relations |
-| [Tiffany](https://elevenlabs.io/voice-library/tiffany/6aDn1KB0hjpdcocrUkmq) | Professional | Leadership |
-| [Tom](https://elevenlabs.io/voice-library/tom/DYkrAHD8iwork3YSUBbs) | Professional | Coordination |
-| [Demon Monster](https://elevenlabs.io/voice-library/demon-monster/vfaqCOvlrKi4Zp7C2IAm) | Deep, spooky | Dramatic |
+**[→ View Complete Voice Library](docs/voice-library.md)** - All voices with clickable samples, descriptions, and best use cases
 
 [↑ Back to top](#-table-of-contents)
 
@@ -1153,81 +879,20 @@ Perfect for international projects! These voices work with Spanish, French, Germ
 
 The BMAD plugin detects when you activate a BMAD agent (e.g., `/BMad:agents:pm`) and automatically uses the assigned voice for that role.
 
-### Default BMAD Voice Mappings
+**Default Agent Voice Mappings:**
+- **pm** (Product Manager) → Jessica Anne Bogart
+- **dev** (Developer) → Matthew Schmitz
+- **qa** (QA Engineer) → Burt Reynolds
+- **architect** → Michael
+- Plus 6 more agents...
 
-| Agent | Role | Voice | Personality |
-|-------|------|-------|-------------|
-| **pm** | Product Manager | Jessica Anne Bogart | professional |
-| **dev** | Developer | Matthew Schmitz | normal |
-| **qa** | QA Engineer | Burt Reynolds | professional |
-| **architect** | Architect | Michael | normal |
-| **po** | Product Owner | Tiffany | professional |
-| **analyst** | Analyst | Ralf Eisend | normal |
-| **sm** | Scrum Master | Ms. Walker | professional |
-| **ux-expert** | UX Expert | Aria | normal |
-| **bmad-master** | BMAD Master | Archer | zen |
-| **bmad-orchestrator** | Orchestrator | Tom | professional |
-
-### Plugin Management
-
+**Quick Commands:**
 ```bash
-# Check status (auto-enables if BMAD detected)
-/agent-vibes-bmad status
-
-# Disable plugin
-/agent-vibes-bmad disable
-
-# Re-enable plugin
-/agent-vibes-bmad enable
-
-# Customize agent voice
-/agent-vibes-bmad set pm "Aria" zen
-
-# Edit configuration
-/agent-vibes-bmad edit
+/agent-vibes-bmad status            # Check plugin status
+/agent-vibes-bmad set pm "Aria" zen # Customize agent voice
 ```
 
-### How It Works
-
-1. **Auto-Detection**: Plugin checks for `.bmad-core/install-manifest.yaml`
-2. **Auto-Enable**: Enables automatically when BMAD is detected
-3. **Settings Preservation**: Saves your previous voice/personality when enabling
-4. **Restore on Disable**: Restores previous settings when disabling
-
-### 🌍 Language Support with BMAD
-
-When you set a language, AgentVibes intelligently selects the best voice:
-
-**Language Priority System:**
-1. **BMAD Agent Active** + **Language Set**: Uses multilingual version of agent's assigned voice
-   - If agent's voice doesn't support the language → switches to Antoni/Rachel/Domi/Bella (multilingual)
-2. **BMAD Agent Active** + **No Language Set**: Uses agent's assigned voice (default English)
-3. **No BMAD Agent** + **Language Set**: Uses current voice if multilingual, otherwise switches to Antoni
-4. **No BMAD Agent** + **No Language Set**: Uses current voice/personality normally
-
-**Example Workflow:**
-```bash
-# Set language to Spanish
-/agent-vibes:set-language spanish
-
-# Activate BMAD PM agent
-/BMad:agents:pm
-# → Will try to use Jessica Anne Bogart for Spanish
-# → If not multilingual, falls back to Antoni (Spanish-optimized)
-
-# All TTS will speak in Spanish with appropriate voice
-```
-
-**Supported Languages:**
-- Spanish, French, German, Italian, Portuguese, Chinese, Japanese, Korean, Polish, Dutch, Turkish, Russian, and 20+ more
-
-**Multilingual Fallback Voices:**
-- **Antoni** - Best for Spanish
-- **Rachel** - Best for French
-- **Domi** - Best for German
-- **Bella** - Best for Italian
-- **Charlotte** - European languages
-- **Matilda** - Latin languages
+**[→ View Complete BMAD Documentation](docs/bmad-plugin.md)** - All agent mappings, language support, plugin management, and customization
 
 [↑ Back to top](#-table-of-contents)
 
@@ -1235,51 +900,22 @@ When you set a language, AgentVibes intelligently selects the best voice:
 
 ## 📦 Installation Structure (Full Details)
 
+**What gets installed in your project:**
+
 ```
-your-project/
-└── .claude/
-    ├── commands/
-    │   ├── agent-vibes/              # 15 voice commands
-    │   └── agent-vibes-bmad.md       # BMAD plugin command
-    ├── hooks/
-    │   ├── play-tts.sh               # Main TTS (provider-aware)
-    │   ├── play-tts-elevenlabs.sh    # ElevenLabs implementation
-    │   ├── play-tts-piper.sh         # Piper implementation
-    │   ├── provider-manager.sh       # Provider switching
-    │   ├── provider-commands.sh      # Provider CLI
-    │   ├── language-manager.sh       # Language system
-    │   ├── voice-manager.sh          # Voice switching
-    │   ├── personality-manager.sh    # Personality system
-    │   ├── sentiment-manager.sh      # Sentiment system
-    │   ├── bmad-voice-manager.sh     # BMAD integration
-    │   ├── piper-voice-manager.sh    # Piper voices
-    │   ├── piper-download-voices.sh  # Piper downloader
-    │   └── voices-config.sh          # Voice ID mappings
-    ├── personalities/                # 19 personality templates
-    ├── plugins/
-    │   └── bmad-voices.md            # BMAD voice mappings
-    ├── output-styles/
-    │   └── agent-vibes.md            # Voice output style
-    └── audio/                        # Generated TTS files
+your-project/.claude/
+├── commands/        # 15 voice commands + BMAD plugin
+├── hooks/           # TTS scripts (provider-aware)
+├── personalities/   # 19 personality templates
+├── plugins/         # BMAD voice mappings
+└── output-styles/   # Voice output style
 ```
 
-### Voice Settings Storage
+**Voice Settings Storage:**
+- **Project-Local**: `.claude/tts-*.txt` files
+- **Global Fallback**: `~/.claude/tts-*.txt` files
+- Different voices/personalities per project!
 
-**Project-Local Settings** (`.claude/` in project):
-- **Current Provider**: `tts-provider.txt` - Active TTS provider (elevenlabs/piper)
-- **Current Voice**: `tts-voice.txt` - Selected voice name
-- **Current Personality**: `tts-personality.txt` - Active personality
-- **Current Sentiment**: `tts-sentiment.txt` - Active sentiment
-- **Current Language**: `tts-language.txt` - Selected language
-
-**Global Fallback** (`~/.claude/`):
-Settings fall back to global config if project-local doesn't exist.
-
-**How it works:**
-1. AgentVibes checks `.claude/` in current project first
-2. Falls back to `~/.claude/` if project setting doesn't exist
-3. This allows different voices/personalities per project!
-
-Settings persist across Claude Code sessions!
+**[→ View Complete Installation Structure](docs/installation-structure.md)** - Full directory tree, file descriptions, and settings storage
 
 [↑ Back to top](#-table-of-contents)
