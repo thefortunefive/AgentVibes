@@ -1,5 +1,38 @@
 #!/bin/bash
-# Personality manager for AgentVibes - adds character to TTS messages
+#
+# File: .claude/hooks/personality-manager.sh
+#
+# AgentVibes - Finally, your AI Agents can Talk Back! Text-to-Speech WITH personality for AI Assistants!
+# Website: https://agentvibes.org
+# Repository: https://github.com/paulpreibisch/AgentVibes
+#
+# Co-created by Paul Preibisch with Claude AI
+# Copyright (c) 2025 Paul Preibisch
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+# DISCLAIMER: This software is provided "AS IS", WITHOUT WARRANTY OF ANY KIND,
+# express or implied. Use at your own risk. See the Apache License for details.
+#
+# ---
+#
+# @fileoverview Personality Manager - Adds character and emotional style to TTS voices
+# @context Enables voices to have distinct personalities (flirty, sarcastic, pirate, etc.) with provider-aware voice assignment
+# @architecture Markdown-based personality templates with provider-specific voice mappings (ElevenLabs vs Piper)
+# @dependencies .claude/personalities/*.md files, voice-manager.sh, play-tts.sh, provider-manager.sh
+# @entrypoints Called by /agent-vibes:personality slash commands
+# @patterns Template-based configuration, provider abstraction, random personality support
+# @related .claude/personalities/*.md, voice-manager.sh, .claude/tts-personality.txt
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PERSONALITIES_DIR="$SCRIPT_DIR/../personalities"

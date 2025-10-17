@@ -1,6 +1,38 @@
 #!/bin/bash
-# Language Learning Mode Manager for AgentVibes
-# Handles dual-language TTS for language learning
+#
+# File: .claude/hooks/learn-manager.sh
+#
+# AgentVibes - Finally, your AI Agents can Talk Back! Text-to-Speech WITH personality for AI Assistants!
+# Website: https://agentvibes.org
+# Repository: https://github.com/paulpreibisch/AgentVibes
+#
+# Co-created by Paul Preibisch with Claude AI
+# Copyright (c) 2025 Paul Preibisch
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+# DISCLAIMER: This software is provided "AS IS", WITHOUT WARRANTY OF ANY KIND,
+# express or implied. Use at your own risk. See the Apache License for details.
+#
+# ---
+#
+# @fileoverview Language Learning Mode Manager - Enables dual-language TTS for immersive learning
+# @context Speaks responses in both main language (English) and target language (Spanish, French, etc.) for language practice
+# @architecture Manages main/target language pairs with voice mappings, auto-configures recommended voices per language
+# @dependencies play-tts.sh (dual invocation), language-manager.sh (voice recommendations), .claude/tts-*.txt state files
+# @entrypoints Called by /agent-vibes:learn commands to enable/disable learning mode
+# @patterns Dual-voice orchestration, auto-configuration, greeting on activation, provider-aware voice selection
+# @related language-manager.sh, play-tts.sh, .claude/tts-learn-mode.txt, .claude/tts-target-language.txt
 
 set -e
 
