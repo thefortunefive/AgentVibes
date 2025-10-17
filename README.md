@@ -376,126 +376,28 @@ AgentVibes provides **50+ slash commands** and **natural language MCP equivalent
 
 ## 📚 Language Learning Mode
 
-**Learn a second language naturally while you program!** 🌍
+**🎯 Learn Spanish (or 30+ languages) while you program!** 🌍
 
-AgentVibes' Language Learning Mode is a **breakthrough feature** that helps programmers learn new languages through **context and repetition**. Every task acknowledgment and completion is spoken **twice** - first in your native language (English), then in your target language (e.g., Spanish).
+AgentVibes' Language Learning Mode is a **breakthrough feature** - every task acknowledgment plays **twice**: first in English, then in your target language.
 
-### 🎯 Why This Is Revolutionary
-
-**The Problem:** Traditional language learning apps are disconnected from your daily workflow. You have to stop coding, open Duolingo, and study separately.
-
-**The Solution:** With AgentVibes, you learn **while you code**. Every git commit, every build command, every test run - you hear it in English, then immediately in Spanish. Natural, contextual, effortless learning.
-
-### ✨ How It Works
-
-1. **Set your target language** - Choose from 30+ languages (Spanish, French, German, etc.)
-2. **Enable learning mode** - One simple command
-3. **Code normally** - AgentVibes handles the rest
-4. **Hear everything twice** - English first, then your target language
-5. **Adjust speed** - Slow down target language for better comprehension
-
-### 🚀 Quick Start (Learn Spanish Example)
-
+**Quick Start:**
 ```bash
-# Step 1: Set Spanish as your target language
-/agent-vibes:target spanish
-
-# Step 2: Enable learning mode
-/agent-vibes:learn
-
-# Step 3: Code normally!
-# Every acknowledgment plays twice:
-#   1st: "Starting the build" (English)
-#   2nd: "Iniciando la compilación" (Spanish)
-
-# Optional: Slow down Spanish for learning
-/agent-vibes:set-speed target 2x    # 2x slower Spanish
+/agent-vibes:target spanish     # Set target language
+/agent-vibes:learn              # Enable learning mode
+# Now code normally - hear everything in English, then Spanish!
 ```
 
-### 📖 Example Learning Session
+**Why it works:**
+- **Context-based** - Learn programming terms in real situations
+- **Spaced repetition** - Natural exposure throughout your coding day
+- **Adjustable speed** - Slow down target language for comprehension
+- **Zero effort** - Learning happens automatically while you code
 
-```
-User: "Run the tests"
+**Real-world impact:**
+- Traditional: 30 minutes Duolingo ("The apple is red")
+- AgentVibes: 8 hours coding = hundreds of contextual phrases
 
-Claude (English): "Running your test suite now!"
-🔊 Plays in English (Aria voice)
-
-Claude (Spanish): "¡Ejecutando tu suite de pruebas ahora!"
-🔊 Plays in Spanish (Antoni voice, 2x slower if configured)
-
-User: "Fix the bug"
-
-Claude (English): "I'll track down that bug for you!"
-🔊 Plays in English
-
-Claude (Spanish): "¡Voy a rastrear ese error para ti!"
-🔊 Plays in Spanish
-```
-
-### 🎓 Why This Works for Learning
-
-1. **Context-based learning** - Hear programming terms in real situations
-2. **Spaced repetition** - Natural exposure throughout your coding day
-3. **Native pronunciation** - AI voices model perfect accent
-4. **Adjustable pace** - Slow down difficult phrases
-5. **Consistent exposure** - Build vocabulary passively while working
-6. **Zero extra effort** - Learning happens automatically
-
-### 🌍 Supported Target Languages
-
-Spanish, French, German, Italian, Portuguese, Chinese, Japanese, Korean, Russian, Arabic, Hindi, Polish, Dutch, Turkish, Swedish, Danish, Norwegian, Finnish, Czech, Romanian, Ukrainian, Greek, Bulgarian, Croatian, Slovak, and more!
-
-### 🎚️ Advanced Features
-
-**Speech Rate Control:**
-```bash
-# Slow down target language for better comprehension
-/agent-vibes:set-speed target 2x    # 2x slower
-/agent-vibes:set-speed target 3x    # 3x slower (best for beginners)
-/agent-vibes:set-speed normal       # Reset to normal speed
-```
-
-**Mixed Provider Support:**
-- Use **ElevenLabs** for English (premium quality)
-- Use **Piper TTS** for Spanish (free, adjustable speed)
-- System auto-detects provider from voice name
-
-**Auto-Voice Selection:**
-- System picks the best voice for your target language
-- Provider-aware (ElevenLabs voices for ElevenLabs, Piper voices for Piper)
-- Smart fallback if preferred voice unavailable
-
-### 📝 All Language Learning Commands
-
-| Command | Description |
-|---------|-------------|
-| `/agent-vibes:target <language>` | Set target language to learn (e.g., `spanish`) |
-| `/agent-vibes:target-voice <voice>` | Set voice for target language |
-| `/agent-vibes:learn` | Enable/disable learning mode |
-| `/agent-vibes:language <language>` | Set your native/main language |
-| `/agent-vibes:set-speed target <speed>` | Adjust target language speed |
-| `/agent-vibes:set-speed get` | Show current speed settings |
-
-### 💡 Pro Tips
-
-1. **Start with 2x slower** - Give yourself time to process
-2. **Use Piper TTS for free** - Unlimited practice with no API costs
-3. **Learn during routine tasks** - Git commits, builds, tests
-4. **Gradually increase speed** - As you improve, speed up the playback
-5. **Combine with personalities** - Learn sarcasm in Spanish! 😄
-
-### 🎯 Real-World Use Case
-
-**Before AgentVibes Learning Mode:**
-- Study Spanish on Duolingo for 30 minutes
-- Context: Random sentences like "The apple is red"
-- Total daily practice: 30 minutes
-
-**With AgentVibes Learning Mode:**
-- Code for 8 hours with learning mode enabled
-- Context: Real programming tasks you're actually doing
-- Total daily practice: Hundreds of contextual phrases
-- **Result:** Learn programming vocabulary in Spanish naturally!
+**[→ View Complete Learning Mode Guide](docs/language-learning-mode.md)** - Full tutorial, commands, speech rate control, supported languages, and pro tips
 
 [↑ Back to top](#-table-of-contents)
 
@@ -534,13 +436,13 @@ Applies personality style to **your current voice** without changing it.
 
 ## 🗣️ Voice Library
 
-AgentVibes includes **27 unique ElevenLabs voices** with multilingual support. See full voice library [here](#-voice-library-full-list).
+AgentVibes includes **27 unique ElevenLabs voices** with multilingual support.
 
 💡 **Tip:** Click voice names to hear samples on ElevenLabs!
 🎧 **Try in Claude Code:** `/agent-vibes:preview` to hear all voices
 🌍 **Multilingual:** Use Antoni, Rachel, Domi, or Bella for automatic language detection
 
-[→ View Full Voice Library](#-voice-library-full-list)
+**[→ View Complete Voice Library](docs/voice-library.md)** - All 27 voices with clickable samples, descriptions, and best use cases
 
 [↑ Back to top](#-table-of-contents)
 
@@ -550,9 +452,9 @@ AgentVibes includes **27 unique ElevenLabs voices** with multilingual support. S
 
 **Automatically switch voices when using BMAD agents!**
 
-The BMAD plugin detects when you activate a BMAD agent (e.g., `/BMad:agents:pm`) and automatically uses the assigned voice for that role. See full BMAD documentation [here](#-bmad-plugin-full-documentation).
+The BMAD plugin detects when you activate a BMAD agent (e.g., `/BMad:agents:pm`) and automatically uses the assigned voice for that role.
 
-[→ View Full BMAD Documentation](#-bmad-plugin-full-documentation)
+**[→ View Complete BMAD Documentation](docs/bmad-plugin.md)** - All agent mappings, language support, plugin management, and customization
 
 [↑ Back to top](#-table-of-contents)
 
@@ -560,9 +462,9 @@ The BMAD plugin detects when you activate a BMAD agent (e.g., `/BMad:agents:pm`)
 
 ## 📦 Installation Structure
 
-See what gets installed [here](#-installation-structure-full-details).
+**What gets installed:** Commands, hooks, personalities, plugins, and output styles in `.claude/` directory.
 
-[→ View Full Installation Structure](#-installation-structure-full-details)
+**[→ View Complete Installation Structure](docs/installation-structure.md)** - Full directory tree, file descriptions, and settings storage
 
 [↑ Back to top](#-table-of-contents)
 
@@ -850,72 +752,3 @@ If AgentVibes makes your coding more fun:
 
 [↑ Back to top](#-table-of-contents)
 
----
-
-# 📚 Appendix
-
-## 🗣️ Voice Library (Full List)
-
-AgentVibes includes **27 unique ElevenLabs voices** across three categories:
-
-**🌍 Multilingual Voices (4)** - Support 30+ languages
-- Antoni, Rachel, Domi, Bella
-
-**🗣️ Language-Optimized Voices (2)** - French, German, Spanish, Portuguese
-- Charlotte, Matilda
-
-**🎭 English Character Voices (19)** - Personalities and unique characters
-- Aria, Archer, Cowboy Bob, Pirate Marshal, Grandpa Spuds, Jessica Anne Bogart, and more!
-
-**[→ View Complete Voice Library](docs/voice-library.md)** - All voices with clickable samples, descriptions, and best use cases
-
-[↑ Back to top](#-table-of-contents)
-
----
-
-## 🔌 BMAD Plugin (Full Documentation)
-
-**Automatically switch voices when using BMAD agents!**
-
-The BMAD plugin detects when you activate a BMAD agent (e.g., `/BMad:agents:pm`) and automatically uses the assigned voice for that role.
-
-**Default Agent Voice Mappings:**
-- **pm** (Product Manager) → Jessica Anne Bogart
-- **dev** (Developer) → Matthew Schmitz
-- **qa** (QA Engineer) → Burt Reynolds
-- **architect** → Michael
-- Plus 6 more agents...
-
-**Quick Commands:**
-```bash
-/agent-vibes-bmad status            # Check plugin status
-/agent-vibes-bmad set pm "Aria" zen # Customize agent voice
-```
-
-**[→ View Complete BMAD Documentation](docs/bmad-plugin.md)** - All agent mappings, language support, plugin management, and customization
-
-[↑ Back to top](#-table-of-contents)
-
----
-
-## 📦 Installation Structure (Full Details)
-
-**What gets installed in your project:**
-
-```
-your-project/.claude/
-├── commands/        # 15 voice commands + BMAD plugin
-├── hooks/           # TTS scripts (provider-aware)
-├── personalities/   # 19 personality templates
-├── plugins/         # BMAD voice mappings
-└── output-styles/   # Voice output style
-```
-
-**Voice Settings Storage:**
-- **Project-Local**: `.claude/tts-*.txt` files
-- **Global Fallback**: `~/.claude/tts-*.txt` files
-- Different voices/personalities per project!
-
-**[→ View Complete Installation Structure](docs/installation-structure.md)** - Full directory tree, file descriptions, and settings storage
-
-[↑ Back to top](#-table-of-contents)
