@@ -42,37 +42,37 @@ Whether you're coding in Claude Code, chatting in Claude Desktop, or using Warp 
 ## 📑 Table of Contents
 
 ### Getting Started
-- [🚀 Quick Start](#claude-code-quick-start) - Install in 3 steps
-- [✨ What is AgentVibes?](#what-is-agentvibes) - Overview & key features
-- [📰 Latest Release](#latest-release) - What's new
+- [🚀 Quick Start](#-quick-start) - Install in 3 steps
+- [✨ What is AgentVibes?](#-what-is-agentvibes) - Overview & key features
+- [📰 Latest Release](#-latest-release) - What's new
 
 ### AgentVibes MCP (Natural Language Control)
-- [🎙️ AgentVibes MCP Overview](#agentvibes-mcp-easiest-way-to-use-agentvibes) - **Easiest way** - Natural language commands
+- [🎙️ AgentVibes MCP Overview](#%EF%B8%8F-agentvibes-mcp) - **Easiest way** - Natural language commands
   - [For Claude Desktop](#for-claude-desktop) - Windows/WSL setup, Python requirements
   - [For Warp Terminal](#for-warp-terminal) - Warp configuration
   - [For Claude Code](#for-claude-code) - Project-specific setup
-- [📦 What Gets Installed](#where-settings-are-saved) - MCP dependencies & settings
+- [📦 What Gets Installed](#-installation-structure) - MCP dependencies & settings
 
 ### Core Features
-- [🎤 Commands Reference](#commands-reference) - All available commands
-- [📚 Language Learning Mode](#language-learning-mode) - **NEW!** Learn Spanish while you program
-- [🎭 Personalities vs Sentiments](#personalities-vs-sentiments) - Two systems explained
-- [🗣️ Voice Library](#voice-library) - 27+ professional voices
+- [🎤 Commands Reference](#-commands-reference) - All available commands
+- [📚 Language Learning Mode](#-language-learning-mode) - **NEW!** Learn Spanish while you program
+- [🎭 Personalities vs Sentiments](#-personalities-vs-sentiments) - Two systems explained
+- [🗣️ Voice Library](#%EF%B8%8F-voice-library) - 27+ professional voices
 - [🌍 Multilingual Support](#change-language) - Speak in 30+ languages
-- [🔌 BMAD Plugin](#bmad-plugin) - Auto voice switching for BMAD agents
+- [🔌 BMAD Plugin](#-bmad-plugin) - Auto voice switching for BMAD agents
 
 ### Advanced Topics
-- [📦 Installation Structure](#installation-structure) - What gets installed
-- [💡 Usage Examples](#usage-examples) - Common workflows
-- [🔧 Advanced Features](#advanced-features) - Custom voices & personalities
-- [🔊 Remote Audio Setup](#remote-audio-setup) - Play TTS from remote servers
-- [❓ Troubleshooting](#troubleshooting) - Common issues & fixes
+- [📦 Installation Structure](#-installation-structure) - What gets installed
+- [💡 Usage Examples](#-usage-examples) - Common workflows
+- [🔧 Advanced Features](#-advanced-features) - Custom voices & personalities
+- [🔊 Remote Audio Setup](#-remote-audio-setup) - Play TTS from remote servers
+- [❓ Troubleshooting](#-troubleshooting) - Common issues & fixes
 
 ### Additional Resources
-- [🔗 Useful Links](#useful-links) - Voice typing & AI tools
-- [🔄 Updating](#updating) - Keep AgentVibes current
-- [🙏 Credits](#credits) - Acknowledgments
-- [🤝 Contributing](#contributing) - Show support
+- [🔗 Useful Links](#-useful-links) - Voice typing & AI tools
+- [🔄 Updating](#-updating) - Keep AgentVibes current
+- [🙏 Credits](#-credits) - Acknowledgments
+- [🤝 Contributing](#-contributing) - Show support
 
 ---
 
@@ -96,7 +96,19 @@ Plus: **Language Learning Mode** (e.g., Learn Spanish while you program!) with d
 
 ---
 
-## 🎙️ AgentVibes MCP (Easiest Way to Use AgentVibes!)
+## 🎙️ AgentVibes MCP
+
+Agent Vibes was originally created to give the Claude Code assistant a voice! Simply install it with an npx command in your terminal, and Claude Code can talk back to you.
+
+We've now enhanced this capability by adding an MCP (Model Context Protocol) server. This integration exposes Agent Vibes' functionality directly to your AI assistant, allowing you to configure and control Agent Vibes using natural language instead of typing "/" slash commands.
+
+Setting it up is straightforward: just add the MCP server to your Claude Code configuration files.
+
+But the convenience doesn't stop there. With the MCP server in place, Claude Desktop can now use Agent Vibes too! We've even tested it successfully with Warp, an AI assistant that helps you navigate Windows and other operating systems.
+
+We're thrilled about this expansion because it means Claude Desktop and Warp can finally talk back as well!
+
+If you decide to use the MCP server on Claude Desktop, after configuration, give Claude Desktop this command: "every time i give you a command, speak the acknowledgement using agentvibes and the confirmation about what you completed, when done"—and watch the magic happen!
 
 **🎯 Control AgentVibes with natural language - no slash commands to remember!**
 
