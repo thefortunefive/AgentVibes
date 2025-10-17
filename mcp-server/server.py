@@ -297,7 +297,19 @@ class AgentVibesServer:
 
         result = await self._run_script("provider-manager.sh", ["switch", provider])
         if result and "✓" in result:
-            return result
+            # Automatically speak confirmation in the new provider's voice
+            provider_name = "ElevenLabs" if provider == "elevenlabs" else "Piper"
+            confirmation_text = f"Successfully switched to {provider_name} provider"
+
+            try:
+                # Speak the confirmation (ignoring the TTS result details)
+                await self.text_to_speech(confirmation_text)
+                # Return the provider switch result plus TTS confirmation
+                return f"{result}\n🔊 Spoken confirmation: {confirmation_text}"
+            except Exception as e:
+                # If TTS fails, still return success for the provider switch
+                return f"{result}\n⚠️ Provider switched but TTS confirmation failed: {e}"
+
         return f"❌ Failed to switch provider: {result}"
 
     async def set_learn_mode(self, enabled: bool) -> str:
