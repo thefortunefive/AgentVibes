@@ -1,12 +1,43 @@
 #!/bin/bash
 #
+# File: .claude/hooks/provider-manager.sh
+#
+# AgentVibes - Finally, your AI Agents can Talk Back! Text-to-Speech WITH personality for AI Assistants!
+# Website: https://agentvibes.org
+# Repository: https://github.com/paulpreibisch/AgentVibes
+#
+# Co-created by Paul Preibisch with Claude AI
+# Copyright (c) 2025 Paul Preibisch
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+# DISCLAIMER: This software is provided "AS IS", WITHOUT WARRANTY OF ANY KIND,
+# express or implied, including but not limited to the warranties of
+# merchantability, fitness for a particular purpose and noninfringement.
+# In no event shall the authors or copyright holders be liable for any claim,
+# damages or other liability, whether in an action of contract, tort or
+# otherwise, arising from, out of or in connection with the software or the
+# use or other dealings in the software.
+#
+# ---
+#
 # @fileoverview TTS Provider Management Functions
 # @context Core provider abstraction layer for multi-provider TTS system
 # @architecture Provides functions to get/set/list/validate TTS providers
 # @dependencies None - pure bash implementation
 # @entrypoints Sourced by play-tts.sh and provider management commands
 # @patterns File-based state management with project-local and global fallback
-# @related play-tts.sh, play-tts-elevenlabs.sh, GitHub Issue #25
+# @related play-tts.sh, play-tts-elevenlabs.sh, play-tts-piper.sh, provider-commands.sh
 #
 
 # @function get_provider_config_path

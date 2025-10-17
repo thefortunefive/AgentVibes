@@ -1,9 +1,43 @@
 #!/bin/bash
 #
+# File: .claude/hooks/speed-manager.sh
+#
+# AgentVibes - Finally, your AI Agents can Talk Back! Text-to-Speech WITH personality for AI Assistants!
+# Website: https://agentvibes.org
+# Repository: https://github.com/paulpreibisch/AgentVibes
+#
+# Co-created by Paul Preibisch with Claude AI
+# Copyright (c) 2025 Paul Preibisch
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+# DISCLAIMER: This software is provided "AS IS", WITHOUT WARRANTY OF ANY KIND,
+# express or implied, including but not limited to the warranties of
+# merchantability, fitness for a particular purpose and noninfringement.
+# In no event shall the authors or copyright holders be liable for any claim,
+# damages or other liability, whether in an action of contract, tort or
+# otherwise, arising from, out of or in connection with the software or the
+# use or other dealings in the software.
+#
+# ---
+#
 # @fileoverview Speech Speed Manager for Multi-Provider TTS
 # @context Manage speech rate for main and target language voices
-# @architecture Simple config file manager supporting both Piper and ElevenLabs
-# @providers Piper (length-scale), ElevenLabs (speed API parameter)
+# @architecture Simple config file manager supporting both Piper (length-scale) and ElevenLabs (speed API parameter)
+# @dependencies .claude/config/tts-speech-rate.txt, .claude/config/tts-target-speech-rate.txt
+# @entrypoints Called by /agent-vibes:set-speed slash command
+# @patterns Provider-agnostic speed config, legacy file migration, random tongue twisters for testing
+# @related play-tts.sh, play-tts-piper.sh, play-tts-elevenlabs.sh, learn-manager.sh
 #
 
 # Get script directory

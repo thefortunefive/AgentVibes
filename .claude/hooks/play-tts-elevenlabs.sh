@@ -1,12 +1,38 @@
 #!/bin/bash
 #
-# @fileoverview ElevenLabs TTS Provider Implementation
-# @context Provider-specific implementation for ElevenLabs API integration
-# @architecture Part of multi-provider TTS system - implements provider interface
+# File: .claude/hooks/play-tts-elevenlabs.sh
+#
+# AgentVibes - Finally, your AI Agents can Talk Back! Text-to-Speech WITH personality for AI Assistants!
+# Website: https://agentvibes.org
+# Repository: https://github.com/paulpreibisch/AgentVibes
+#
+# Co-created by Paul Preibisch with Claude AI
+# Copyright (c) 2025 Paul Preibisch
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+# DISCLAIMER: This software is provided "AS IS", WITHOUT WARRANTY OF ANY KIND,
+# express or implied. Use at your own risk. See the Apache License for details.
+#
+# ---
+#
+# @fileoverview ElevenLabs TTS Provider Implementation - Premium cloud-based TTS
+# @context Provider-specific implementation for ElevenLabs API integration with multilingual support
+# @architecture Part of multi-provider TTS system - implements provider interface contract
 # @dependencies Requires ELEVENLABS_API_KEY, curl, ffmpeg, paplay/aplay/mpg123, jq
-# @entrypoints Called by play-tts.sh router with ($1=text, $2=voice_name)
-# @patterns Follows provider contract: accept text/voice, output audio file path
-# @related play-tts.sh, provider-manager.sh, GitHub Issue #25
+# @entrypoints Called by play-tts.sh router with ($1=text, $2=voice_name) when provider=elevenlabs
+# @patterns Follows provider contract: accept text/voice, output audio file path, API error handling, SSH audio optimization
+# @related play-tts.sh, provider-manager.sh, voices-config.sh, language-manager.sh, GitHub Issue #25
 #
 
 # Fix locale warnings

@@ -20,6 +20,37 @@ Every file must begin with a comprehensive context header that provides AI assis
 
 ```javascript
 /**
+ * File: [path/to/file.js]
+ *
+ * AgentVibes - Finally, your AI Agents can Talk Back! Text-to-Speech WITH personality for AI Assistants!
+ * Website: https://agentvibes.org
+ * Repository: https://github.com/paulpreibisch/AgentVibes
+ *
+ * Co-created by Paul Preibisch with Claude AI
+ * Copyright (c) 2025 Paul Preibisch
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ * DISCLAIMER: This software is provided "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ * express or implied, including but not limited to the warranties of
+ * merchantability, fitness for a particular purpose and noninfringement.
+ * In no event shall the authors or copyright holders be liable for any claim,
+ * damages or other liability, whether in an action of contract, tort or
+ * otherwise, arising from, out of or in connection with the software or the
+ * use or other dealings in the software.
+ *
+ * ---
+ *
  * @fileoverview [Brief description]
  * @context [Why this exists, what problem it solves]
  * @architecture [How it fits in the system, patterns used]
@@ -58,6 +89,33 @@ Every file must begin with a comprehensive context header that provides AI assis
 
 ```bash
 #!/bin/bash
+#
+# File: .claude/hooks/play-tts-elevenlabs.sh
+#
+# AgentVibes - Professional Text-to-Speech for AI Assistants
+# Website: https://agentvibes.org
+# Repository: https://github.com/paulpreibisch/AgentVibes
+#
+# Co-created by Paul Preibisch with Claude AI
+# Copyright (c) 2025 Paul Preibisch
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+# DISCLAIMER: This software is provided "AS IS", WITHOUT WARRANTY OF ANY KIND,
+# express or implied. Use at your own risk. See the Apache License for details.
+#
+# ---
+#
 # @fileoverview ElevenLabs TTS provider implementation
 # @context Handles all ElevenLabs API interactions for voice synthesis
 # @architecture Provider interface implementation, follows play-tts.sh contract
@@ -297,10 +355,26 @@ When writing new code:
 
 - **Source PRD**: `docs/prd.md` (Multi-Provider TTS System)
 - **Example Implementation**: `.claude/hooks/play-tts.sh`, `provider-manager.sh`
-- **GitHub Issue**: #25 (Multi-Provider TTS Feature)
+- **GitHub Repository**: https://github.com/paulpreibisch/AgentVibes
+- **Project Website**: https://agentvibes.org
 
 ---
 
-**Generated from**: AgentVibes Multi-Provider TTS System PRD v1.0
-**Extracted by**: John (PM)
-**Date**: 2025-01-05
+## Document Information
+
+**AgentVibes - Finally, your AI Agents can Talk Back! Text-to-Speech WITH personality for AI Assistants!**
+
+- **Website**: https://agentvibes.org
+- **Repository**: https://github.com/paulpreibisch/AgentVibes
+- **Co-created by**: Paul Preibisch with Claude AI
+- **Copyright**: © 2025 Paul Preibisch
+- **License**: Apache-2.0
+- **Version**: 1.0
+- **Last Updated**: 2025-01-17
+
+---
+
+**DISCLAIMER**: This software is provided "AS IS", WITHOUT WARRANTY OF ANY KIND, express or implied, including but not limited to the warranties of merchantability, fitness for a particular purpose and noninfringement. In no event shall the authors or copyright holders be liable for any claim, damages or other liability, whether in an action of contract, tort or otherwise, arising from, out of or in connection with the software or the use or other dealings in the software.
+
+For full license terms, see the LICENSE file in the project root or visit:
+http://www.apache.org/licenses/LICENSE-2.0
