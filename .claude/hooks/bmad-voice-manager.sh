@@ -1,10 +1,62 @@
 #!/bin/bash
+#
+# File: .claude/hooks/bmad-voice-manager.sh
+#
+# AgentVibes - Finally, your AI Agents can Talk Back! Text-to-Speech WITH personality for AI Assistants!
+# Website: https://agentvibes.org
+# Repository: https://github.com/paulpreibisch/AgentVibes
+#
+# Co-created by Paul Preibisch with Claude AI
+# Copyright (c) 2025 Paul Preibisch
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+# DISCLAIMER: This software is provided "AS IS", WITHOUT WARRANTY OF ANY KIND,
+# express or implied, including but not limited to the warranties of
+# merchantability, fitness for a particular purpose and noninfringement.
+# In no event shall the authors or copyright holders be liable for any claim,
+# damages or other liability, whether in an action of contract, tort or
+# otherwise, arising from, out of or in connection with the software or the
+# use or other dealings in the software.
+#
+# ---
+#
+# @fileoverview BMAD Voice Plugin Manager - Maps BMAD agents to unique TTS voices
+# @context Enables each BMAD agent to have its own distinct voice for multi-agent sessions
+# @architecture Markdown table-based voice mapping with enable/disable flag, auto-detection of BMAD
+# @dependencies .claude/plugins/bmad-voices.md (voice mappings), bmad-tts-injector.sh, .bmad-core/ (BMAD installation)
+# @entrypoints Called by /agent-vibes:bmad commands, auto-enabled on BMAD detection
+# @patterns Plugin architecture, auto-enable on dependency detection, state backup/restore on toggle
+# @related bmad-tts-injector.sh, .claude/plugins/bmad-voices.md, .bmad-agent-context file
 
 PLUGIN_DIR=".claude/plugins"
 PLUGIN_FILE="$PLUGIN_DIR/bmad-voices.md"
 ENABLED_FLAG="$PLUGIN_DIR/bmad-voices-enabled.flag"
 
-# Auto-enable plugin if BMAD is detected
+# AI NOTE: Auto-enable pattern - When BMAD is detected via .bmad-core/install-manifest.yaml,
+# automatically enable the voice plugin to provide seamless multi-agent voice support.
+# This avoids requiring manual plugin activation after BMAD installation.
+
+# @function auto_enable_if_bmad_detected
+# @intent Automatically enable BMAD voice plugin when BMAD framework is detected
+# @why Provide seamless integration - users shouldn't need to manually enable voice mapping
+# @param None
+# @returns None
+# @exitcode 0=auto-enabled, 1=not enabled (already enabled or BMAD not detected)
+# @sideeffects Creates enabled flag file, creates plugin directory
+# @edgecases Only auto-enables if plugin not already enabled, silent operation
+# @calledby get_agent_voice
+# @calls mkdir, touch
 auto_enable_if_bmad_detected() {
     # Check if BMAD is installed
     if [[ -f ".bmad-core/install-manifest.yaml" ]] && [[ ! -f "$ENABLED_FLAG" ]]; then
@@ -16,7 +68,16 @@ auto_enable_if_bmad_detected() {
     return 1
 }
 
-# Parse markdown table to get voice mapping
+# @function get_agent_voice
+# @intent Retrieve TTS voice assigned to specific BMAD agent
+# @why Each BMAD agent needs unique voice for multi-agent conversation differentiation
+# @param $1 {string} agent_id - BMAD agent identifier (pm, dev, qa, architect, etc.)
+# @returns Echoes voice name to stdout, empty string if plugin disabled or agent not found
+# @exitcode Always 0
+# @sideeffects May auto-enable plugin if BMAD detected
+# @edgecases Returns empty string if plugin disabled/missing, parses markdown table syntax
+# @calledby bmad-tts-injector.sh, play-tts.sh when BMAD agent is active
+# @calls auto_enable_if_bmad_detected, grep, awk, sed
 get_agent_voice() {
     local agent_id="$1"
 
@@ -41,7 +102,16 @@ get_agent_voice() {
     echo "$voice"
 }
 
-# Get personality for agent
+# @function get_agent_personality
+# @intent Retrieve TTS personality assigned to specific BMAD agent
+# @why Agents may have distinct speaking styles (friendly, professional, energetic, etc.)
+# @param $1 {string} agent_id - BMAD agent identifier
+# @returns Echoes personality name to stdout, empty string if not found
+# @exitcode Always 0
+# @sideeffects None
+# @edgecases Returns empty string if plugin file missing, parses column 5 of markdown table
+# @calledby bmad-tts-injector.sh for personality-aware voice synthesis
+# @calls grep, awk, sed
 get_agent_personality() {
     local agent_id="$1"
 
@@ -57,12 +127,31 @@ get_agent_personality() {
     echo "$personality"
 }
 
-# Check if plugin is enabled
+# @function is_plugin_enabled
+# @intent Check if BMAD voice plugin is currently enabled
+# @why Allow conditional logic based on plugin state
+# @param None
+# @returns Echoes "true" or "false" to stdout
+# @exitcode Always 0
+# @sideeffects None
+# @edgecases None
+# @calledby show_status, enable_plugin, disable_plugin
+# @calls None (file existence check)
 is_plugin_enabled() {
     [[ -f "$ENABLED_FLAG" ]] && echo "true" || echo "false"
 }
 
-# Enable plugin
+# @function enable_plugin
+# @intent Enable BMAD voice plugin and backup current voice settings
+# @why Allow users to switch to per-agent voices while preserving original configuration
+# @param None
+# @returns None
+# @exitcode Always 0
+# @sideeffects Creates flag file, backs up current voice/personality/sentiment to .bmad-previous-settings
+# @sideeffects Creates activation-instructions file for BMAD agents, calls bmad-tts-injector.sh
+# @edgecases Handles missing settings files gracefully with defaults
+# @calledby Main command dispatcher with "enable" argument
+# @calls mkdir, cat, source, list_mappings, bmad-tts-injector.sh
 enable_plugin() {
     mkdir -p "$PLUGIN_DIR"
 
@@ -193,7 +282,16 @@ ACTIVATION_EOF
     fi
 }
 
-# Disable plugin
+# @function disable_plugin
+# @intent Disable BMAD voice plugin and restore previous voice settings
+# @why Allow users to return to single-voice mode with their original configuration
+# @param None
+# @returns None
+# @exitcode Always 0
+# @sideeffects Removes flag file, restores settings from backup, calls bmad-tts-injector.sh disable
+# @edgecases Handles missing backup file gracefully, warns user if no backup exists
+# @calledby Main command dispatcher with "disable" argument
+# @calls source, rm, echo, bmad-tts-injector.sh
 disable_plugin() {
     BACKUP_FILE="$PLUGIN_DIR/.bmad-previous-settings"
 
@@ -250,7 +348,16 @@ disable_plugin() {
     fi
 }
 
-# List all mappings
+# @function list_mappings
+# @intent Display all BMAD agent-to-voice mappings in readable format
+# @why Help users see which voice is assigned to each agent
+# @param None
+# @returns None
+# @exitcode 0=success, 1=plugin file not found
+# @sideeffects Writes formatted output to stdout
+# @edgecases Parses markdown table format, skips header and separator rows
+# @calledby enable_plugin, show_status, main command dispatcher with "list"
+# @calls grep, sed, echo
 list_mappings() {
     if [[ ! -f "$PLUGIN_FILE" ]]; then
         echo "❌ Plugin file not found: $PLUGIN_FILE"
@@ -271,7 +378,18 @@ list_mappings() {
     done
 }
 
-# Set voice for agent
+# @function set_agent_voice
+# @intent Update voice and personality mapping for specific BMAD agent
+# @why Allow customization of agent voices to user preferences
+# @param $1 {string} agent_id - BMAD agent identifier
+# @param $2 {string} voice - New voice name
+# @param $3 {string} personality - New personality (optional, defaults to "normal")
+# @returns None
+# @exitcode 0=success, 1=plugin file not found or agent not found
+# @sideeffects Modifies plugin file, creates .bak backup
+# @edgecases Validates agent exists before updating
+# @calledby Main command dispatcher with "set" argument
+# @calls grep, sed
 set_agent_voice() {
     local agent_id="$1"
     local voice="$2"
@@ -294,7 +412,16 @@ set_agent_voice() {
     echo "✅ Updated $agent_id → $voice [$personality]"
 }
 
-# Show status
+# @function show_status
+# @intent Display plugin status, BMAD detection, and current voice mappings
+# @why Provide comprehensive overview of plugin state for troubleshooting
+# @param None
+# @returns None
+# @exitcode Always 0
+# @sideeffects Writes status information to stdout
+# @edgecases Checks for BMAD installation via manifest file
+# @calledby Main command dispatcher with "status" argument
+# @calls is_plugin_enabled, list_mappings
 show_status() {
     # Check for BMAD installation
     local bmad_installed="false"
@@ -317,7 +444,16 @@ show_status() {
     list_mappings
 }
 
-# Edit plugin file
+# @function edit_plugin
+# @intent Open plugin configuration file for manual editing
+# @why Allow advanced users to modify voice mappings directly
+# @param None
+# @returns None
+# @exitcode 0=success, 1=plugin file not found
+# @sideeffects Displays file path and instructions
+# @edgecases Does not actually open editor, just provides guidance
+# @calledby Main command dispatcher with "edit" argument
+# @calls echo
 edit_plugin() {
     if [[ ! -f "$PLUGIN_FILE" ]]; then
         echo "❌ Plugin file not found: $PLUGIN_FILE"

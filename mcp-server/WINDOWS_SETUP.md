@@ -2,198 +2,288 @@
 
 Complete guide for setting up AgentVibes MCP server on Windows with Claude Desktop.
 
-## Quick Start (Automatic)
+---
 
-```powershell
-cd C:\Users\Paul\AgentVibes
-npm install
-```
+## Prerequisites
 
-That's it! The `npm install` command will automatically:
-- Install Node.js dependencies
-- Install Python `mcp` package
-- Verify Python is available
+Before installing AgentVibes, you need:
 
-## Voice Options for Windows
+### Required
 
-AgentVibes supports two TTS providers on Windows:
+1. **Python 3.10+**
+   - Download: https://python.org/downloads
+   - **IMPORTANT**: During installation, check "Add Python to PATH"
+   - Verify installation: `python --version`
 
-### 1. ElevenLabs (Recommended for Windows) ⭐
+2. **Node.js 16+**
+   - Download: https://nodejs.org
+   - Verify installation: `node --version`
+
+3. **Claude Desktop OR Claude Code**
+
+   You need ONE of these:
+
+   - **Claude Desktop** - Standalone desktop application for chatting with Claude
+     - Download: https://claude.ai/download
+     - Use case: General chat, research, writing assistance
+
+   - **Claude Code** - CLI tool for coding with Claude in your terminal
+     - Download: https://docs.claude.com/en/docs/claude-code/download
+     - Use case: Coding assistance, terminal-based workflows
+
+   **Note**: This guide focuses on Claude Desktop setup. For Claude Code setup, see the main README.md
+
+### Choose Your Voice Provider
+
+You must choose **ONE** of these options:
+
+#### Option A: Piper TTS (Free, Recommended) ⭐
 
 **Pros:**
-- ✅ Works perfectly on Windows
-- ✅ 30+ premium, natural-sounding voices
+- ✅ Completely free forever
+- ✅ Works offline (no internet needed)
+- ✅ No API key required
+- ✅ Privacy-focused (all processing local)
+- ✅ Multiple voices available
+
+**Cons:**
+- ❌ Requires WSL (Windows Subsystem for Linux)
+- ❌ Voice quality not as premium as ElevenLabs
+
+**Additional Prerequisite:**
+- **WSL (Windows Subsystem for Linux)** - REQUIRED for Piper
+  - Install with PowerShell (as Administrator):
+    ```powershell
+    wsl --install
+    ```
+  - Restart your computer after installation
+  - Verify: `wsl --status`
+
+#### Option B: ElevenLabs (Paid)
+
+**Pros:**
+- ✅ Premium, natural-sounding voices
+- ✅ 30+ voices available
 - ✅ Multi-language support (25+ languages)
-- ✅ Easy setup - no additional software needed
+- ✅ No WSL required
+- ✅ Easy setup
 
 **Cons:**
-- ❌ Requires API key (paid service, but has free tier)
+- ❌ **Requires paid API key** (costs money after free trial)
 - ❌ Requires internet connection
+- ❌ Privacy concern (audio sent to ElevenLabs servers)
 
-**Setup:**
+**Additional Prerequisite:**
+- **ElevenLabs API Key** (get from https://elevenlabs.io)
+  - Free trial: 10,000 characters
+  - After trial: Paid subscription required
 
-1. Get API key from https://elevenlabs.io
-2. Add to Claude Desktop config:
+---
+
+## Installation
+
+### Step 1: Configure Claude Desktop
+
+Edit Claude Desktop config file:
+- Location: `%APPDATA%\Claude\claude_desktop_config.json`
+- Full path example: `C:\Users\%USERNAME%\AppData\Roaming\Claude\claude_desktop_config.json`
+
+**For Piper (Free, with WSL):**
 
 ```json
 {
   "mcpServers": {
     "agentvibes": {
-      "command": "python",
-      "args": ["C:\\\\Users\\\\Paul\\\\AgentVibes\\\\mcp-server\\\\server.py"],
-      "env": {
-        "ELEVENLABS_API_KEY": "your-api-key-here"
-      }
+      "command": "npx",
+      "args": ["-y", "agentvibes@beta", "agentvibes-mcp-server"]
     }
   }
 }
 ```
 
-3. Configure in AgentVibes (from WSL):
-```bash
-cd /mnt/c/Users/Paul/AgentVibes
-.claude/hooks/provider-manager.sh switch elevenlabs
-```
+**For ElevenLabs (Paid):**
 
-### 2. Piper TTS (Free, Offline)
-
-**Pros:**
-- ✅ Completely free
-- ✅ Works offline
-- ✅ No API key needed
-- ✅ Privacy-focused (all local)
-
-**Cons:**
-- ❌ More complex Windows setup
-- ❌ Fewer voice options
-- ❌ Audio quality not as good as ElevenLabs
-
-**Setup:**
-
-Piper works on Windows but requires WSL or Windows builds:
-
-**Option A: Use WSL (Easier)**
-
-1. Install WSL if not already:
-   ```powershell
-   wsl --install
-   ```
-
-2. In WSL Ubuntu:
-   ```bash
-   pipx install piper-tts
-   ```
-
-3. Configure audio to work from WSL → Windows:
-   - See: `setup-ubuntu-rdp-audio.sh` in the repo
-
-**Option B: Windows Native (Advanced)**
-
-1. Download Piper Windows release:
-   - https://github.com/rhasspy/piper/releases
-   - Extract to `C:\Program Files\Piper\`
-
-2. Add to PATH in PowerShell:
-   ```powershell
-   $env:PATH += ";C:\Program Files\Piper"
-   ```
-
-3. Configure in AgentVibes
-
-**Recommendation:** For Windows, use **ElevenLabs**. It's much easier to set up and provides better voice quality.
-
-## Complete Installation Steps
-
-### 1. Prerequisites
-
-- **Python 3.10+** installed from https://python.org
-  - During installation, check "Add Python to PATH"
-- **Node.js 16+** installed from https://nodejs.org
-- **Git** (optional, for cloning)
-
-### 2. Install AgentVibes
-
-Clone or download the repository:
-
+First, set your API key in PowerShell:
 ```powershell
-cd C:\Users\Paul
-git clone https://github.com/paulpreibisch/AgentVibes.git
-cd AgentVibes
+setx ELEVENLABS_API_KEY "your-api-key-here"
 ```
 
-### 3. Run NPM Install
+**⚠️ IMPORTANT**: After running `setx`:
+1. Close PowerShell
+2. Close Claude Desktop completely
+3. Open a new PowerShell window
+4. Restart Claude Desktop
 
+Then add to config:
+```json
+{
+  "mcpServers": {
+    "agentvibes": {
+      "command": "npx",
+      "args": ["-y", "agentvibes@beta", "agentvibes-mcp-server"]
+    }
+  }
+}
+```
+
+**Note**: Claude Desktop automatically inherits environment variables, so no need to add `env` section if you used `setx`.
+
+### Step 2: Restart Claude Desktop
+
+1. Close Claude Desktop completely (check system tray)
+2. Reopen Claude Desktop
+3. Wait for MCP server to initialize (~10 seconds first time)
+
+---
+
+## Testing
+
+### Verify Installation
+
+| Claude Desktop | Claude Code (Slash Commands) | Claude Code (with AgentVibes MCP) |
+|----------------|------------------------------|-----------------------------------|
+| Type: `What AgentVibes tools do you have?` | Run: `/agent-vibes:list` | Type: `What AgentVibes tools do you have?` |
+
+**Expected response**: List of tools including:
+- `text_to_speech`
+- `list_voices`
+- `set_voice`
+- `set_personality`
+- `set_language`
+- `get_config`
+- `replay_audio`
+
+### Test Voice Output
+
+| Claude Desktop | Claude Code (Slash Commands) | Claude Code (with AgentVibes MCP) |
+|----------------|------------------------------|-----------------------------------|
+| Type: `Use text to speech to say "Hello, AgentVibes is working!"` | Run: `.claude/hooks/play-tts.sh "Hello, AgentVibes is working!"` | Type: `Use text to speech to say "Hello, AgentVibes is working!"` |
+
+**Expected result**: You should hear audio output!
+
+### Check Current Configuration
+
+| Claude Desktop | Claude Code (Slash Commands) | Claude Code (with AgentVibes MCP) |
+|----------------|------------------------------|-----------------------------------|
+| Type: `What's my current AgentVibes configuration?` | Run: `.claude/hooks/provider-manager.sh status` | Type: `What's my current AgentVibes configuration?` |
+
+**Expected response**: Shows current voice, personality, language, and provider (Piper or ElevenLabs).
+
+---
+
+## Switching Providers
+
+### Switch to ElevenLabs (from Piper)
+
+First, ensure you have your API key set:
 ```powershell
-npm install
+setx ELEVENLABS_API_KEY "your-api-key-here"
 ```
 
-This automatically installs:
-- Node.js dependencies
-- Python `mcp` package
+Then restart your terminal/Claude Desktop and run:
 
-### 4. Configure Claude Desktop
+| Claude Desktop | Claude Code (Slash Commands) | Claude Code (with AgentVibes MCP) |
+|----------------|------------------------------|-----------------------------------|
+| Type: `Switch to ElevenLabs provider` | Run: `.claude/hooks/provider-manager.sh switch elevenlabs` | Type: `Switch to ElevenLabs provider` |
 
-Edit: `C:\Users\Paul\AppData\Roaming\Claude\claude_desktop_config.json`
+### Switch to Piper (from ElevenLabs)
 
-**For ElevenLabs:**
+Ensure WSL is installed, then:
 
-```json
-{
-  "mcpServers": {
-    "agentvibes": {
-      "command": "python",
-      "args": ["C:\\\\Users\\\\Paul\\\\AgentVibes\\\\mcp-server\\\\server.py"],
-      "env": {
-        "ELEVENLABS_API_KEY": "sk-your-key-here"
-      }
-    }
-  }
-}
-```
+| Claude Desktop | Claude Code (Slash Commands) | Claude Code (with AgentVibes MCP) |
+|----------------|------------------------------|-----------------------------------|
+| Type: `Switch to Piper provider` | Run: `.claude/hooks/provider-manager.sh switch piper` | Type: `Switch to Piper provider` |
 
-**For Piper (if you set it up):**
+---
 
-```json
-{
-  "mcpServers": {
-    "agentvibes": {
-      "command": "python",
-      "args": ["C:\\\\Users\\\\Paul\\\\AgentVibes\\\\mcp-server\\\\server.py"],
-      "env": {}
-    }
-  }
-}
-```
+## Voice Configuration
 
-### 5. Restart Claude Desktop
+### List Available Voices
 
-Close Claude Desktop completely and reopen it.
+| Claude Desktop | Claude Code (Slash Commands) | Claude Code (with AgentVibes MCP) |
+|----------------|------------------------------|-----------------------------------|
+| Type: `List all available voices` | Run: `/agent-vibes:list` | Type: `List all available voices` |
 
-### 6. Test It!
+### Change Voice
 
-In Claude Desktop:
+| Claude Desktop | Claude Code (Slash Commands) | Claude Code (with AgentVibes MCP) |
+|----------------|------------------------------|-----------------------------------|
+| Type: `Switch to Northern Terry voice` | Run: `/agent-vibes:switch "Northern Terry"` | Type: `Switch to Northern Terry voice` |
 
-```
-"What AgentVibes tools do you have?"
-```
+### Set Personality
 
-Should show: `text_to_speech`, `list_voices`, `set_voice`, etc.
+| Claude Desktop | Claude Code (Slash Commands) | Claude Code (with AgentVibes MCP) |
+|----------------|------------------------------|-----------------------------------|
+| Type: `Set personality to pirate` | Run: `/agent-vibes:personality pirate` | Type: `Set personality to pirate` |
 
-```
-"Use text to speech to say hello"
-```
+### Set Language
 
-You should hear audio!
+| Claude Desktop | Claude Code (Slash Commands) | Claude Code (with AgentVibes MCP) |
+|----------------|------------------------------|-----------------------------------|
+| Type: `Speak in Spanish` | Run: `/agent-vibes:set-language spanish` | Type: `Speak in Spanish` |
+
+### Show Current Settings
+
+| Claude Desktop | Claude Code (Slash Commands) | Claude Code (with AgentVibes MCP) |
+|----------------|------------------------------|-----------------------------------|
+| Type: `Show my AgentVibes configuration` | Run: `.claude/hooks/provider-manager.sh status` | Type: `Show my AgentVibes configuration` |
+
+---
 
 ## Troubleshooting
 
+### "Python not found"
+
+1. Install Python from https://python.org
+2. During installation, check "Add Python to PATH"
+3. Restart PowerShell
+4. Verify: `python --version`
+
+### "Node.js not found"
+
+1. Install Node.js from https://nodejs.org
+2. Restart PowerShell
+3. Verify: `node --version` and `npx --version`
+
+### "MCP server not starting"
+
+1. Check Claude Desktop logs:
+   - Location: `%APPDATA%\Claude\logs\mcp-server-agentvibes.log`
+2. Look for error messages
+3. Ensure all prerequisites are installed
+4. Restart Claude Desktop
+
+### No Audio Output (Piper)
+
+1. Verify WSL is installed: `wsl --status`
+2. Verify Piper is installed in WSL:
+   ```bash
+   wsl -e bash -c "piper --version"
+   ```
+3. If not installed, install in WSL:
+   ```bash
+   wsl -e bash -c "pipx install piper-tts"
+   ```
+4. Check audio routing from WSL to Windows speakers
+5. Restart Claude Desktop
+
+### No Audio Output (ElevenLabs)
+
+1. Verify API key is set:
+   ```powershell
+   echo %ELEVENLABS_API_KEY%
+   ```
+2. Check internet connection
+3. Verify API key is valid at https://elevenlabs.io
+4. Check Claude Desktop logs for error messages
+5. Ensure you haven't exceeded API quota
+
 ### "No module named 'mcp'"
 
-Run manually:
+The MCP package should auto-install. If it fails:
+
 ```powershell
 pip install mcp
-# or
-python -m pip install mcp
 ```
 
 Verify:
@@ -201,46 +291,13 @@ Verify:
 python -c "import mcp; print('Success!')"
 ```
 
-### Python Not Found
+---
 
-1. Install Python from https://python.org
-2. During installation, check "Add Python to PATH"
-3. Restart PowerShell
-4. Verify: `python --version`
+## Advanced Configuration
 
-### Audio Not Playing (ElevenLabs)
+### Custom Instructions for Automatic TTS
 
-1. Check API key is correct
-2. Check internet connection
-3. View logs: `C:\Users\Paul\AppData\Roaming\Claude\logs\mcp-server-agentvibes.log`
-
-### Audio Not Playing (Piper)
-
-Piper on Windows requires:
-- PulseAudio or WSL audio setup
-- See `setup-ubuntu-rdp-audio.sh` for WSL configuration
-- Or use ElevenLabs instead (much easier)
-
-## Voice Configuration
-
-List available voices:
-```
-"List all AgentVibes voices"
-```
-
-Switch voice:
-```
-"Switch to Northern Terry voice"
-```
-
-Set personality:
-```
-"Set personality to pirate"
-```
-
-## Advanced: Custom Instructions
-
-Add to Claude Desktop custom instructions for automatic TTS:
+Add to Claude Desktop custom instructions:
 
 ```markdown
 When I give you a task:
@@ -248,28 +305,48 @@ When I give you a task:
 2. Perform the task
 3. Use text_to_speech to confirm completion
 
-Keep messages brief (under 150 characters).
+Keep TTS messages brief (under 150 characters).
 ```
 
-See `mcp-server/examples/custom_instructions.md` for full examples.
+### Project-Specific Settings
+
+AgentVibes saves settings in:
+- **Global**: `~/.claude/` (applies to all projects)
+- **Project**: `.claude/` in project directory (overrides global)
+
+This allows different voices/personalities per project!
+
+---
 
 ## Performance Notes
 
-- **ElevenLabs**: ~1-2 second latency (API call over internet)
-- **Piper**: Near instant (runs locally)
-- **Windows Python**: Slightly slower startup than WSL Python
+- **Piper**: Near-instant response (runs locally in WSL)
+- **ElevenLabs**: 1-2 second latency (API call over internet)
+- **First run**: Slower (downloading voices/models)
+- **Subsequent runs**: Much faster (cached)
 
-## Recommended Setup for Windows Users
+---
 
-1. Use **ElevenLabs** for best voice quality
-2. Get a free API key (500 characters/month free tier)
-3. Upgrade to paid plan if you use it heavily
-4. Keep Piper as backup for offline use
+## Recommendations
+
+### For Most Users (Free)
+1. ✅ Install WSL
+2. ✅ Use Piper provider (free, offline)
+3. ✅ Choose from 10+ free voices
+4. ✅ No ongoing costs
+
+### For Premium Voice Quality (Paid)
+1. ✅ Get ElevenLabs API key
+2. ✅ Use ElevenLabs provider
+3. ✅ Access 30+ premium voices
+4. ❌ Requires paid subscription after trial
+
+---
 
 ## Support
 
+- **Documentation**: https://github.com/paulpreibisch/AgentVibes
 - **Issues**: https://github.com/paulpreibisch/AgentVibes/issues
-- **Docs**: See main README.md
 - **Logs**: `%APPDATA%\Claude\logs\mcp-server-agentvibes.log`
 
 ---

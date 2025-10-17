@@ -1,9 +1,38 @@
 #!/bin/bash
 #
-# @fileoverview BMAD TTS Injection Manager
-# @context Automatically patches BMAD agent files to include AgentVibes TTS hooks
-# @architecture Modifies agent YAML activation-instructions to call play-tts.sh
-# @why Enables BMAD agents to speak their greetings and questions via TTS
+# File: .claude/hooks/bmad-tts-injector.sh
+#
+# AgentVibes - Finally, your AI Agents can Talk Back! Text-to-Speech WITH personality for AI Assistants!
+# Website: https://agentvibes.org
+# Repository: https://github.com/paulpreibisch/AgentVibes
+#
+# Co-created by Paul Preibisch with Claude AI
+# Copyright (c) 2025 Paul Preibisch
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+# DISCLAIMER: This software is provided "AS IS", WITHOUT WARRANTY OF ANY KIND,
+# express or implied. Use at your own risk. See the Apache License for details.
+#
+# ---
+#
+# @fileoverview BMAD TTS Injection Manager - Patches BMAD agents for TTS integration
+# @context Automatically modifies BMAD agent YAML files to include AgentVibes TTS capabilities
+# @architecture Injects TTS hooks into activation-instructions and core_principles sections
+# @dependencies bmad-core/agents/*.md files, play-tts.sh, bmad-voice-manager.sh
+# @entrypoints Called via bmad-tts-injector.sh {enable|disable|status|restore}
+# @patterns File patching with backup, provider-aware voice mapping, injection markers for idempotency
+# @related play-tts.sh, bmad-voice-manager.sh, .bmad-core/agents/*.md
 #
 
 set -e  # Exit on error

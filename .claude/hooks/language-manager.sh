@@ -1,6 +1,38 @@
 #!/bin/bash
-# Language Manager for AgentVibes
-# Manages language settings and multilingual voice selection
+#
+# File: .claude/hooks/language-manager.sh
+#
+# AgentVibes - Finally, your AI Agents can Talk Back! Text-to-Speech WITH personality for AI Assistants!
+# Website: https://agentvibes.org
+# Repository: https://github.com/paulpreibisch/AgentVibes
+#
+# Co-created by Paul Preibisch with Claude AI
+# Copyright (c) 2025 Paul Preibisch
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+# DISCLAIMER: This software is provided "AS IS", WITHOUT WARRANTY OF ANY KIND,
+# express or implied. Use at your own risk. See the Apache License for details.
+#
+# ---
+#
+# @fileoverview Language Manager - Manages multilingual TTS with 30+ language support
+# @context Enables TTS in multiple languages with provider-specific voice recommendations (ElevenLabs multilingual vs Piper native)
+# @architecture Dual-map system: ELEVENLABS_VOICES and PIPER_VOICES for provider-aware voice selection
+# @dependencies provider-manager.sh for active provider detection, .claude/tts-language.txt for state
+# @entrypoints Called by /agent-vibes:language commands, play-tts-*.sh for voice resolution
+# @patterns Provider abstraction, language-to-voice mapping, backward compatibility with legacy LANGUAGE_VOICES
+# @related play-tts-elevenlabs.sh, play-tts-piper.sh, provider-manager.sh, learn-manager.sh
 
 # Determine target .claude directory based on context
 # Priority:
