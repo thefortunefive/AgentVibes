@@ -45,6 +45,7 @@ Whether you're coding in Claude Code, chatting in Claude Desktop, or using Warp 
 - [🚀 Quick Start](#-quick-start) - Install in 3 steps
 - [✨ What is AgentVibes?](#-what-is-agentvibes) - Overview & key features
 - [📰 Latest Release](#-latest-release) - What's new
+- [🪟 Windows Setup Guide for Claude Desktop](mcp-server/WINDOWS_SETUP.md) - Complete Windows installation with WSL & Python
 
 ### AgentVibes MCP (Natural Language Control)
 - [🎙️ AgentVibes MCP Overview](#%EF%B8%8F-agentvibes-mcp) - **Easiest way** - Natural language commands
