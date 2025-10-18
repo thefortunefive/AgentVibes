@@ -140,25 +140,23 @@ Piper needs to be installed inside WSL for the free voices to work.
 
 1. **Open PowerShell**
 
-2. **Download and install Piper**:
-   - Copy and paste this command and press Enter:
+2. **Run the automated installer**:
+   - Copy and paste this single command and press Enter:
      ```powershell
-     wsl -e bash -c "pip install piper-tts && pip install pydub"
+     wsl -e bash -c "curl -sSL https://raw.githubusercontent.com/paulpreibisch/AgentVibes/master/.claude/hooks/piper-installer.sh | bash"
      ```
-   - Wait for installation (1-2 minutes)
+   - The installer will:
+     - Install pipx (if needed)
+     - Install Piper TTS
+     - Download a default voice (en_US-lessac-medium)
+   - Wait for installation (2-3 minutes)
 
-3. **Download a voice model**:
-   - Copy and paste this command:
-     ```powershell
-     wsl -e bash -c "mkdir -p ~/.local/share/piper-voices && curl -L 'https://huggingface.co/rhasspy/piper-voices/resolve/main/en/en_US/lessac/medium/en_US-lessac-medium.onnx' -o ~/.local/share/piper-voices/en_US-lessac-medium.onnx && curl -L 'https://huggingface.co/rhasspy/piper-voices/resolve/main/en/en_US/lessac/medium/en_US-lessac-medium.onnx.json' -o ~/.local/share/piper-voices/en_US-lessac-medium.onnx.json"
-     ```
-   - Wait for download (30 seconds)
+3. **When prompted** "Would you like to download voice models now?":
+   - Type `y` and press Enter
+   - This downloads the free voice model
 
-4. **Test Piper works**:
-   ```powershell
-   wsl -e bash -c "echo 'Hello from Piper' | piper-tts --model ~/.local/share/piper-voices/en_US-lessac-medium.onnx --output_file /tmp/test.wav && aplay /tmp/test.wav"
-   ```
-   - You should hear "Hello from Piper"!
+4. **Installation complete!**
+   - You should see "🎉 Piper TTS Setup Complete!"
 
 ---
 
