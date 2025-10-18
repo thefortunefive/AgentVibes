@@ -49,13 +49,20 @@ if [[ "$1" == "--yes" ]] || [[ "$1" == "-y" ]]; then
   AUTO_YES=true
 fi
 
-# Common voice models to download
+# Common voice models to download from HuggingFace (official Piper voices)
 COMMON_VOICES=(
   "en_US-lessac-medium"      # Default, clear male
   "en_US-amy-medium"         # Warm female
   "en_US-joe-medium"         # Professional male
   "en_US-ryan-high"          # Expressive male
   "en_US-libritts-high"      # Premium quality
+)
+
+# Custom high-quality voices from Bryce Beattie (https://brycebeattie.com/files/tts/)
+# Licensed: Public Domain (Kristin) / CC BY attribution (Jenny)
+CUSTOM_VOICES=(
+  "kristin:https://sfo3.digitaloceanspaces.com/bkmdls/kristin.onnx:https://sfo3.digitaloceanspaces.com/bkmdls/kristin.onnx.json"  # US English female (Public Domain)
+  "jenny:https://sfo3.digitaloceanspaces.com/bkmdls/jenny.onnx:https://sfo3.digitaloceanspaces.com/bkmdls/jenny.onnx.json"      # UK English female, Irish (CC BY attribution required)
 )
 
 echo "🎙️  Piper Voice Model Downloader"
@@ -150,16 +157,88 @@ done
 
 echo ""
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo "📊 Download Summary:"
+echo "📊 Download Summary (Standard Voices):"
 echo "   ✅ Successfully downloaded: $DOWNLOADED"
 echo "   ❌ Failed: $FAILED"
 echo "   📦 Total voices available: $((ALREADY_DOWNLOADED + DOWNLOADED))"
 echo ""
 
-if [[ $DOWNLOADED -gt 0 ]]; then
+# Now offer to download custom high-quality voices from Bryce Beattie
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo "🎨 Custom High-Quality Voices Available"
+echo ""
+echo "Additional premium voices from Bryce Beattie:"
+echo "  • Kristin - US English female (Public Domain)"
+echo "  • Jenny - UK English female, Irish accent (CC BY)"
+echo ""
+echo "Source: https://brycebeattie.com/files/tts/"
+echo ""
+
+if [[ "$AUTO_YES" == "false" ]]; then
+  read -p "Download custom voices (Kristin + Jenny)? [Y/n]: " -n 1 -r
+  echo
+
+  if [[ $REPLY =~ ^[Yy]$ ]] || [[ -z $REPLY ]]; then
+    DOWNLOAD_CUSTOM=true
+  else
+    DOWNLOAD_CUSTOM=false
+  fi
+else
+  DOWNLOAD_CUSTOM=true
+fi
+
+if [[ "$DOWNLOAD_CUSTOM" == "true" ]]; then
+  echo ""
+  echo "📥 Downloading custom voices..."
+
+  CUSTOM_DOWNLOADED=0
+  CUSTOM_FAILED=0
+
+  for voice_entry in "${CUSTOM_VOICES[@]}"; do
+    IFS=':' read -r voice_name onnx_url json_url <<< "$voice_entry"
+
+    echo ""
+    echo "📥 Downloading: $voice_name..."
+
+    # Create filename from voice name
+    onnx_file="$VOICE_DIR/${voice_name}.onnx"
+    json_file="$VOICE_DIR/${voice_name}.onnx.json"
+
+    # Download .onnx file
+    if curl -L "$onnx_url" -o "$onnx_file" 2>/dev/null; then
+      # Download .json config file
+      if curl -L "$json_url" -o "$json_file" 2>/dev/null; then
+        ((CUSTOM_DOWNLOADED++))
+        echo "✅ Downloaded: $voice_name"
+      else
+        ((CUSTOM_FAILED++))
+        echo "❌ Failed to download config: $voice_name"
+        rm -f "$onnx_file"  # Clean up partial download
+      fi
+    else
+      ((CUSTOM_FAILED++))
+      echo "❌ Failed to download model: $voice_name"
+    fi
+  done
+
+  echo ""
+  echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+  echo "📊 Custom Voices Summary:"
+  echo "   ✅ Successfully downloaded: $CUSTOM_DOWNLOADED"
+  echo "   ❌ Failed: $CUSTOM_FAILED"
+  echo ""
+fi
+
+TOTAL_DOWNLOADED=$((DOWNLOADED + ${CUSTOM_DOWNLOADED:-0}))
+
+if [[ $TOTAL_DOWNLOADED -gt 0 ]]; then
   echo "✨ Ready to use Piper TTS with downloaded voices!"
   echo ""
   echo "Try it:"
   echo "  /agent-vibes:provider switch piper"
   echo "  /agent-vibes:preview"
+  echo ""
+  echo "Attribution:"
+  echo "  • Custom voices by Bryce Beattie - https://brycebeattie.com/files/tts/"
+  echo "  • Jenny voice requires attribution (CC BY license)"
 fi
