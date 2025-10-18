@@ -134,12 +134,40 @@ Now we'll tell Claude Desktop to use AgentVibes.
 
 ---
 
-## Step 6: Start Using AgentVibes!
+## Step 6: Install Piper Voice System
+
+Piper needs to be installed inside WSL for the free voices to work.
+
+1. **Open PowerShell**
+
+2. **Download and install Piper**:
+   - Copy and paste this command and press Enter:
+     ```powershell
+     wsl -e bash -c "pip install piper-tts && pip install pydub"
+     ```
+   - Wait for installation (1-2 minutes)
+
+3. **Download a voice model**:
+   - Copy and paste this command:
+     ```powershell
+     wsl -e bash -c "mkdir -p ~/.local/share/piper-voices && curl -L 'https://huggingface.co/rhasspy/piper-voices/resolve/main/en/en_US/lessac/medium/en_US-lessac-medium.onnx' -o ~/.local/share/piper-voices/en_US-lessac-medium.onnx && curl -L 'https://huggingface.co/rhasspy/piper-voices/resolve/main/en/en_US/lessac/medium/en_US-lessac-medium.onnx.json' -o ~/.local/share/piper-voices/en_US-lessac-medium.onnx.json"
+     ```
+   - Wait for download (30 seconds)
+
+4. **Test Piper works**:
+   ```powershell
+   wsl -e bash -c "echo 'Hello from Piper' | piper-tts --model ~/.local/share/piper-voices/en_US-lessac-medium.onnx --output_file /tmp/test.wav && aplay /tmp/test.wav"
+   ```
+   - You should hear "Hello from Piper"!
+
+---
+
+## Step 7: Start Using AgentVibes!
 
 1. **Open Claude Desktop**
 
 2. **Wait for setup** (first time only):
-   - The first time, AgentVibes needs to download and install (30-60 seconds)
+   - The first time, AgentVibes MCP server needs to start (10-20 seconds)
    - You'll see a small notification when it's ready
 
 3. **Test it**:
