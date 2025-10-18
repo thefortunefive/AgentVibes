@@ -58,11 +58,14 @@ COMMON_VOICES=(
   "en_US-libritts-high"      # Premium quality
 )
 
-# Custom high-quality voices from Bryce Beattie (https://brycebeattie.com/files/tts/)
-# Licensed: Public Domain (Kristin) / CC BY attribution (Jenny)
+# Custom high-quality voices from AgentVibes HuggingFace repository
+# Original voices by Bryce Beattie (https://brycebeattie.com/files/tts/)
+# Repository: https://huggingface.co/agentvibes/piper-custom-voices
+# Licensed: Public Domain (Kristin, 16Speakers) / CC BY attribution (Jenny)
 CUSTOM_VOICES=(
-  "kristin:https://sfo3.digitaloceanspaces.com/bkmdls/kristin.onnx:https://sfo3.digitaloceanspaces.com/bkmdls/kristin.onnx.json"  # US English female (Public Domain)
-  "jenny:https://sfo3.digitaloceanspaces.com/bkmdls/jenny.onnx:https://sfo3.digitaloceanspaces.com/bkmdls/jenny.onnx.json"      # UK English female, Irish (CC BY attribution required)
+  "kristin:https://huggingface.co/agentvibes/piper-custom-voices/resolve/main/kristin.onnx:https://huggingface.co/agentvibes/piper-custom-voices/resolve/main/kristin.onnx.json"  # US English female (Public Domain)
+  "jenny:https://huggingface.co/agentvibes/piper-custom-voices/resolve/main/jenny.onnx:https://huggingface.co/agentvibes/piper-custom-voices/resolve/main/jenny.onnx.json"      # UK English female, Irish (CC BY attribution required)
+  "16Speakers:https://huggingface.co/agentvibes/piper-custom-voices/resolve/main/16Speakers.onnx:https://huggingface.co/agentvibes/piper-custom-voices/resolve/main/16Speakers.onnx.json"  # Multi-speaker: 16 voices (Public Domain)
 )
 
 echo "🎙️  Piper Voice Model Downloader"
@@ -167,15 +170,17 @@ echo ""
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo "🎨 Custom High-Quality Voices Available"
 echo ""
-echo "Additional premium voices from Bryce Beattie:"
+echo "Additional premium voices from AgentVibes:"
 echo "  • Kristin - US English female (Public Domain)"
 echo "  • Jenny - UK English female, Irish accent (CC BY)"
+echo "  • 16Speakers - Multi-speaker: 16 different voices (Public Domain)"
 echo ""
-echo "Source: https://brycebeattie.com/files/tts/"
+echo "Repository: https://huggingface.co/agentvibes/piper-custom-voices"
+echo "Original voices by: Bryce Beattie (https://brycebeattie.com/files/tts/)"
 echo ""
 
 if [[ "$AUTO_YES" == "false" ]]; then
-  read -p "Download custom voices (Kristin + Jenny)? [Y/n]: " -n 1 -r
+  read -p "Download custom voices (Kristin + Jenny + 16Speakers)? [Y/n]: " -n 1 -r
   echo
 
   if [[ $REPLY =~ ^[Yy]$ ]] || [[ -z $REPLY ]]; then
@@ -239,6 +244,12 @@ if [[ $TOTAL_DOWNLOADED -gt 0 ]]; then
   echo "  /agent-vibes:preview"
   echo ""
   echo "Attribution:"
-  echo "  • Custom voices by Bryce Beattie - https://brycebeattie.com/files/tts/"
+  echo "  • Original voices by Bryce Beattie - https://brycebeattie.com/files/tts/"
+  echo "  • Hosted by AgentVibes - https://huggingface.co/agentvibes/piper-custom-voices"
   echo "  • Jenny voice requires attribution (CC BY license)"
+  echo ""
+  echo "Using 16Speakers multi-voice:"
+  echo "  • Switch to specific speaker: /agent-vibes:switch 16Speakers#0"
+  echo "  • Speakers 0-15 available (Cori, Kara, Kristin, Maria, Mike, etc.)"
+  echo "  • View all speakers: /agent-vibes:list"
 fi
