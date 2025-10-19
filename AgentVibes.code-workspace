@@ -59,26 +59,12 @@
   ],
   "settings": {
     "workbench.colorCustomizations": {
-      "titleBar.activeBackground": "#8b5cf6",
-      "titleBar.activeForeground": "#ffffff",
-      "titleBar.inactiveBackground": "#6d28d9",
-      "titleBar.inactiveForeground": "#d8b4fe",
-      "activityBar.background": "#7c3aed",
-      "activityBar.foreground": "#ffffff",
-      "activityBar.inactiveForeground": "#c4b5fd",
       "activityBar.activeBorder": "#a78bfa",
-      "activityBar.activeBackground": "#8b5cf620",
-      "statusBar.background": "#8b5cf6",
-      "statusBar.foreground": "#ffffff",
       "statusBar.noFolderBackground": "#7c3aed",
-      "statusBar.debuggingBackground": "#a855f7",
-      "statusBar.debuggingForeground": "#ffffff",
       "editorGroupHeader.tabsBackground": "#2c2c2c",
       "tab.activeBorderTop": "#8b5cf6",
       "tab.activeBackground": "#8b5cf620",
       "tab.inactiveBackground": "#2c2c2c",
-      "panel.border": "#8b5cf6",
-      "sideBar.border": "#8b5cf630",
       "sideBarTitle.foreground": "#8b5cf6",
       "sideBarSectionHeader.background": "#8b5cf620",
       "sideBarSectionHeader.foreground": "#8b5cf6",
@@ -253,6 +239,7 @@
       "ms-vscode.vscode-typescript-next",
       "ms-vscode.terminal-keeper",
       "pkief.material-icon-theme"
-    ]
+    ],
+    "unwantedRecommendations": []
   }
 }
