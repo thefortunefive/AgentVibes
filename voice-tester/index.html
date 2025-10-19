@@ -1,0 +1,1437 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AgentVibes Voice Sampler</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #0f0f23;
+            color: #eee;
+            display: flex;
+            min-height: 100vh;
+        }
+
+        .container {
+            display: flex;
+            width: 100%;
+            gap: 0;
+        }
+
+        /* Left Sidebar - Personality Rankings */
+        .left-sidebar {
+            width: 300px;
+            background: #16213e;
+            padding: 20px;
+            overflow-y: auto;
+            border-right: 2px solid #a855f7;
+        }
+
+        .left-sidebar h2 {
+            color: #a855f7;
+            font-size: 18px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .personality-rank {
+            background: #1a1a2e;
+            margin-bottom: 8px;
+            border-radius: 8px;
+            border-left: 3px solid #ec4899;
+            overflow: hidden;
+        }
+
+        .personality-rank-header {
+            padding: 12px;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: background 0.2s;
+        }
+
+        .personality-rank-header:hover {
+            background: #16213e;
+        }
+
+        .personality-rank-header h3 {
+            color: #ec4899;
+            font-size: 14px;
+            margin: 0;
+            flex: 1;
+        }
+
+        .play-btn {
+            background: #60a5fa;
+            border: none;
+            color: white;
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            transition: all 0.2s;
+            margin-right: 8px;
+        }
+
+        .play-btn:hover {
+            background: #3b82f6;
+            transform: scale(1.1);
+        }
+
+        .play-btn-small {
+            width: 22px;
+            height: 22px;
+            font-size: 10px;
+            margin-right: 0;
+        }
+
+        .accordion-icon {
+            color: #60a5fa;
+            font-size: 16px;
+            transition: transform 0.3s;
+        }
+
+        .personality-rank.expanded .accordion-icon {
+            transform: rotate(180deg);
+        }
+
+        .personality-rank-content {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease;
+        }
+
+        .personality-rank.expanded .personality-rank-content {
+            max-height: 500px;
+        }
+
+        .voice-rating-item {
+            background: #0f3460;
+            padding: 8px 12px;
+            margin: 4px 8px;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 12px;
+            border-left: 2px solid transparent;
+        }
+
+        .voice-rating-item.top-rated {
+            border-left: 2px solid #ffd700;
+        }
+
+        .voice-rating-radio {
+            cursor: pointer;
+            accent-color: #a855f7;
+        }
+
+        .voice-rating-name {
+            flex: 1;
+            color: #eee;
+        }
+
+        .star-icon {
+            color: #ffd700;
+            font-size: 14px;
+        }
+
+        .voice-score {
+            color: #a855f7;
+            font-weight: bold;
+            min-width: 40px;
+            text-align: right;
+        }
+
+        .delete-rating {
+            background: #ef4444;
+            border: none;
+            color: white;
+            padding: 2px 6px;
+            border-radius: 3px;
+            cursor: pointer;
+            font-size: 11px;
+            font-weight: bold;
+            margin-left: 8px;
+            transition: all 0.2s;
+        }
+
+        .delete-rating:hover {
+            background: #dc2626;
+            transform: scale(1.1);
+        }
+
+        /* Personality Navigator */
+        .personality-list {
+            background: #1a1a2e;
+            padding: 15px;
+            margin-bottom: 20px;
+            border-radius: 8px;
+            border: 2px solid #ec4899;
+        }
+
+        .personality-list h3 {
+            color: #ec4899;
+            font-size: 16px;
+            margin-bottom: 12px;
+            text-align: center;
+        }
+
+        .personality-item {
+            background: #0f3460;
+            padding: 10px;
+            margin: 6px 0;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s;
+            border-left: 3px solid transparent;
+            font-size: 14px;
+            color: #eee;
+        }
+
+        .personality-item:hover {
+            background: #16213e;
+            transform: translateX(4px);
+        }
+
+        .personality-item.active {
+            background: #16213e;
+            border-left: 3px solid #ec4899;
+            box-shadow: 0 2px 8px rgba(236, 72, 153, 0.3);
+            font-weight: bold;
+        }
+
+        .section-divider {
+            height: 2px;
+            background: linear-gradient(90deg, transparent, #a855f7, transparent);
+            margin: 25px 0;
+        }
+
+        /* Main Content */
+        .main-content {
+            flex: 1;
+            padding: 40px;
+            max-width: 900px;
+            margin: 0 auto;
+            position: relative;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .brand {
+            font-size: 36px;
+            font-weight: bold;
+            background: linear-gradient(135deg, #a855f7 0%, #ec4899 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 10px;
+        }
+
+        .subtitle {
+            color: #60a5fa;
+            font-size: 16px;
+        }
+
+        .personality-header-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin: 10px 0 15px 0;
+            gap: 15px;
+        }
+
+        .personality-progress {
+            color: #ec4899;
+            font-size: 28px;
+            font-weight: bold;
+            flex: 1;
+        }
+
+        .personality-name {
+            font-size: 32px;
+            color: #ec4899;
+        }
+
+        .personality-counter {
+            font-size: 18px;
+            color: #999;
+            font-weight: normal;
+            margin-left: 8px;
+        }
+
+        .voice-progress {
+            text-align: center;
+            color: #a855f7;
+            font-size: 16px;
+            margin: 5px 0;
+        }
+
+        .personality-nav {
+            display: flex;
+            gap: 10px;
+        }
+
+        .personality-btn {
+            background: #ec4899;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: bold;
+            transition: all 0.3s;
+            white-space: nowrap;
+        }
+
+        .personality-btn:hover:not(:disabled) {
+            background: #db2777;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(236, 72, 153, 0.3);
+        }
+
+        .personality-btn:disabled {
+            background: #374151;
+            cursor: not-allowed;
+            opacity: 0.5;
+        }
+
+        .voice-test {
+            background: #16213e;
+            padding: 35px;
+            border-radius: 12px;
+            margin: 25px 0;
+            border: 2px solid #a855f7;
+            box-shadow: 0 8px 32px rgba(168, 85, 247, 0.2);
+        }
+
+        .voice-name {
+            color: #60a5fa;
+            font-size: 24px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        audio {
+            width: 100%;
+            margin: 20px 0;
+            border-radius: 8px;
+        }
+
+        .rating {
+            text-align: center;
+            margin: 25px 0;
+        }
+
+        .rating p {
+            color: #ccc;
+            margin-bottom: 15px;
+            font-size: 16px;
+        }
+
+        .rating-buttons {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin: 20px 0;
+            flex-wrap: wrap;
+        }
+
+        .rating-btn {
+            background: #374151;
+            color: white;
+            border: 2px solid #4b5563;
+            padding: 12px 18px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: bold;
+            transition: all 0.2s;
+            min-width: 50px;
+        }
+
+        .rating-btn:hover {
+            background: #4b5563;
+            transform: scale(1.1);
+        }
+
+        .rating-btn.selected {
+            background: #a855f7;
+            border-color: #a855f7;
+            transform: scale(1.2);
+            box-shadow: 0 4px 16px rgba(168, 85, 247, 0.4);
+        }
+
+        .rating-result {
+            color: #60a5fa;
+            font-size: 18px;
+            margin-top: 15px;
+            min-height: 25px;
+        }
+
+        .nav-buttons {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 30px;
+        }
+
+        .nav-btn {
+            background: #60a5fa;
+            color: white;
+            border: none;
+            padding: 14px 32px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 18px;
+            font-weight: bold;
+            transition: all 0.3s;
+        }
+
+        .nav-btn:hover:not(:disabled) {
+            background: #3b82f6;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(96, 165, 250, 0.3);
+        }
+
+        .nav-btn:disabled {
+            background: #374151;
+            cursor: not-allowed;
+            opacity: 0.5;
+        }
+
+        .help-btn {
+            background: #60a5fa;
+            color: white;
+            border: none;
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 18px;
+            font-weight: bold;
+            transition: all 0.2s;
+            position: absolute;
+            top: 20px;
+            right: 60px;
+        }
+
+        .help-btn:hover {
+            background: #3b82f6;
+            transform: scale(1.1);
+        }
+
+        .export-btn {
+            background: #10b981;
+            color: white;
+            border: none;
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: bold;
+            transition: all 0.2s;
+            position: absolute;
+            top: 20px;
+            right: 20px;
+        }
+
+        .export-btn:hover {
+            background: #059669;
+            transform: scale(1.1);
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.8);
+            animation: fadeIn 0.3s;
+        }
+
+        .modal-content {
+            background: #16213e;
+            margin: 10% auto;
+            padding: 30px;
+            border: 2px solid #60a5fa;
+            border-radius: 12px;
+            width: 80%;
+            max-width: 600px;
+            position: relative;
+            animation: slideDown 0.3s;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        @keyframes slideDown {
+            from { transform: translateY(-50px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+
+        .close {
+            color: #aaa;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+            line-height: 20px;
+        }
+
+        .close:hover,
+        .close:focus {
+            color: #fff;
+        }
+
+        .modal h3 {
+            color: #60a5fa;
+            margin-bottom: 15px;
+            font-size: 24px;
+        }
+
+        .modal p {
+            margin: 12px 0;
+            line-height: 1.6;
+            color: #ccc;
+        }
+
+        .modal strong {
+            color: #ec4899;
+        }
+
+        .current-text {
+            color: #eee;
+            font-style: italic;
+        }
+
+        /* Right Sidebar - Voice Navigator */
+        .right-sidebar {
+            width: 280px;
+            background: #16213e;
+            padding: 20px;
+            overflow-y: auto;
+            border-left: 2px solid #60a5fa;
+        }
+
+        .right-sidebar h2 {
+            color: #60a5fa;
+            font-size: 18px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .voice-list-item {
+            background: #1a1a2e;
+            padding: 12px;
+            margin-bottom: 8px;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s;
+            border-left: 3px solid transparent;
+        }
+
+        .voice-list-item:hover {
+            background: #0f3460;
+            transform: translateX(4px);
+        }
+
+        .voice-list-item.active {
+            background: #0f3460;
+            border-left: 3px solid #60a5fa;
+            box-shadow: 0 2px 8px rgba(96, 165, 250, 0.3);
+        }
+
+        .voice-list-item .voice-number {
+            color: #60a5fa;
+            font-weight: bold;
+            font-size: 12px;
+        }
+
+        .voice-list-item .voice-label {
+            color: #eee;
+            font-size: 14px;
+            margin-top: 4px;
+        }
+
+        .voice-tabs {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 15px;
+        }
+
+        .voice-tab {
+            flex: 1;
+            background: #1a1a2e;
+            color: #aaa;
+            border: 2px solid #374151;
+            padding: 10px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: bold;
+            transition: all 0.2s;
+            text-align: center;
+        }
+
+        .voice-tab:hover {
+            background: #0f3460;
+            border-color: #60a5fa;
+        }
+
+        .voice-tab.active {
+            background: #60a5fa;
+            color: white;
+            border-color: #60a5fa;
+        }
+
+        .gender-filter {
+            display: flex;
+            gap: 6px;
+            margin-bottom: 15px;
+        }
+
+        .gender-btn {
+            flex: 1;
+            background: #1a1a2e;
+            color: #aaa;
+            border: 1px solid #374151;
+            padding: 8px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+
+        .gender-btn:hover {
+            background: #0f3460;
+            border-color: #a855f7;
+        }
+
+        .gender-btn.active {
+            background: #a855f7;
+            color: white;
+            border-color: #a855f7;
+        }
+
+        .voice-card {
+            background: #1a1a2e;
+            padding: 12px;
+            margin-bottom: 8px;
+            border-radius: 6px;
+            border-left: 3px solid transparent;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .voice-card:hover {
+            background: #0f3460;
+        }
+
+        .voice-card.active {
+            background: #0f3460;
+            border-left: 3px solid #60a5fa;
+            box-shadow: 0 2px 8px rgba(96, 165, 250, 0.3);
+        }
+
+        .voice-card-info {
+            flex: 1;
+            cursor: pointer;
+        }
+
+        .voice-card .voice-number {
+            color: #60a5fa;
+            font-weight: bold;
+            font-size: 12px;
+        }
+
+        .voice-card .voice-label {
+            color: #eee;
+            font-size: 14px;
+            margin-top: 4px;
+        }
+
+        .voice-actions {
+            display: flex;
+            gap: 4px;
+        }
+
+        .thumb-btn {
+            background: transparent;
+            border: 1px solid #4b5563;
+            color: #999;
+            width: 28px;
+            height: 28px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .thumb-btn:hover {
+            transform: scale(1.1);
+        }
+
+        .thumb-btn.liked {
+            background: #10b981;
+            border-color: #10b981;
+            color: white;
+        }
+
+        .thumb-btn.unliked {
+            background: #ef4444;
+            border-color: #ef4444;
+            color: white;
+        }
+
+        @media (max-width: 1400px) {
+            .left-sidebar,
+            .right-sidebar {
+                width: 250px;
+            }
+        }
+
+        @media (max-width: 1200px) {
+            .container {
+                flex-direction: column;
+            }
+
+            .left-sidebar,
+            .right-sidebar {
+                width: 100%;
+                max-height: 300px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Left Sidebar: Personality Quick Jump -->
+        <div class="left-sidebar">
+            <h2>🎭 Quick Jump</h2>
+            <div id="rankings-sidebar"></div>
+        </div>
+
+        <!-- Main Content -->
+        <div class="main-content">
+            <div class="header">
+                <div class="brand">🎤 AgentVibes Voice Sampler</div>
+                <div class="subtitle">Rate voices across 16 unique personalities</div>
+            </div>
+
+            <button class="help-btn" onclick="showHelp()" title="Show instructions">?</button>
+            <button class="export-btn" onclick="exportRatings()" title="Export ratings">📊</button>
+
+            <div class="personality-header-row">
+                <div class="personality-progress" id="personality-progress">
+                    <span class="personality-name">Sarcastic</span>
+                    <span class="personality-counter">(Personality 1 of 16)</span>
+                </div>
+                <div class="personality-nav">
+                    <button class="personality-btn" id="prev-personality-btn" onclick="previousPersonality()" disabled title="Previous Personality">← Prev</button>
+                    <button class="personality-btn" id="next-personality-btn" onclick="nextPersonality()" title="Next Personality">Next →</button>
+                </div>
+            </div>
+
+            <div class="voice-progress" id="voice-progress">Voice 1 of 19</div>
+
+            <div class="voice-test">
+                <h2 class="voice-name" id="voice-name">Voice 1: Cori Samuel</h2>
+                <audio id="audio-player" controls autoplay>
+                    <source id="audio-source" src="" type="audio/wav">
+                </audio>
+                <div class="rating">
+                    <p>Rate this voice (1-10):</p>
+                    <div class="rating-buttons" id="rating-buttons">
+                        <button class="rating-btn" onclick="rateVoice(1)">1</button>
+                        <button class="rating-btn" onclick="rateVoice(2)">2</button>
+                        <button class="rating-btn" onclick="rateVoice(3)">3</button>
+                        <button class="rating-btn" onclick="rateVoice(4)">4</button>
+                        <button class="rating-btn" onclick="rateVoice(5)">5</button>
+                        <button class="rating-btn" onclick="rateVoice(6)">6</button>
+                        <button class="rating-btn" onclick="rateVoice(7)">7</button>
+                        <button class="rating-btn" onclick="rateVoice(8)">8</button>
+                        <button class="rating-btn" onclick="rateVoice(9)">9</button>
+                        <button class="rating-btn" onclick="rateVoice(10)">10</button>
+                    </div>
+                    <div class="rating-result" id="rating-result"></div>
+                </div>
+
+                <div class="nav-buttons">
+                    <button class="nav-btn" id="prev-voice-btn" onclick="previousVoice()" disabled>← Previous Voice</button>
+                    <button class="nav-btn" id="next-voice-btn" onclick="nextVoice()">Next Voice →</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Sidebar: Voice Navigator -->
+        <div class="right-sidebar">
+            <h2>🎵 Voice Navigator</h2>
+            <div class="voice-tabs">
+                <div class="voice-tab active" onclick="switchVoiceTab('liked')">
+                    👍 Liked
+                </div>
+                <div class="voice-tab" onclick="switchVoiceTab('unliked')">
+                    👎 Unliked
+                </div>
+            </div>
+            <div class="gender-filter">
+                <button class="gender-btn active" onclick="switchGenderFilter('all')">All</button>
+                <button class="gender-btn" onclick="switchGenderFilter('Male')">♂ Male</button>
+                <button class="gender-btn" onclick="switchGenderFilter('Female')">♀ Female</button>
+            </div>
+            <div id="voice-navigator"></div>
+        </div>
+    </div>
+
+    <script>
+        const voices = [
+            { num: 0, name: "Cori Samuel", gender: "Female", type: "multi" },
+            { num: 1, name: "Kara Shallenberg", gender: "Female", type: "multi" },
+            { num: 2, name: "Kristin Hughes", gender: "Female", type: "multi" },
+            { num: 3, name: "Maria Kasper", gender: "Female", type: "multi" },
+            { num: 4, name: "Mike Pelton", gender: "Male", type: "multi" },
+            { num: 5, name: "Mark Nelson", gender: "Male", type: "multi" },
+            { num: 6, name: "Michael Scherer", gender: "Male", type: "multi" },
+            { num: 7, name: "James K White", gender: "Male", type: "multi" },
+            { num: 8, name: "Rose Ibex", gender: "Female", type: "multi" },
+            { num: 9, name: "ProgressingAmerica", gender: "Male", type: "multi" },
+            { num: 10, name: "Steve C", gender: "Male", type: "multi" },
+            { num: 11, name: "Owlivia", gender: "Female", type: "multi" },
+            { num: 12, name: "Paul Hampton", gender: "Male", type: "multi" },
+            { num: 13, name: "Jennifer Dorr", gender: "Female", type: "multi" },
+            { num: 14, name: "Emily Cripps", gender: "Female", type: "multi" },
+            { num: 15, name: "Martin Clifton", gender: "Male", type: "multi" },
+            { slug: "es_mx_claude", name: "Spanish (MX) - Claude", gender: "Male", type: "single" },
+            { slug: "en_gb_alan", name: "English (GB) - Alan", gender: "Male", type: "single" },
+            { slug: "en_gb_semaine", name: "English (GB) - Semaine", gender: "Female", type: "single" }
+        ];
+
+        const personalities = [
+            {
+                name: "Sarcastic",
+                slug: "sarcastic",
+                emoji: "🙄",
+                text: "Oh wonderful! Even more documentation surgery. Let me just carve up this readme like I'm performing open heart surgery on a markdown file. Absolutely delightful."
+            },
+            {
+                name: "Angry",
+                slug: "angry",
+                emoji: "😡",
+                text: "ARE YOU KIDDING ME?! Another bug in production! This code is absolutely UNACCEPTABLE! We're fixing this RIGHT NOW!"
+            },
+            {
+                name: "Flirty",
+                slug: "flirty",
+                emoji: "😘",
+                text: "Well hello there, gorgeous codebase. You're looking absolutely stunning today. Maybe we could spend some quality time together... debugging?"
+            },
+            {
+                name: "Pirate",
+                slug: "pirate",
+                emoji: "🏴‍☠️",
+                text: "Ahoy matey! Thar be bugs in these waters! Hoist the main sail and prepare to plunder this pull request, ye scurvy developer!"
+            },
+            {
+                name: "Zen",
+                slug: "zen",
+                emoji: "🧘",
+                text: "Breathe in the bugs. Breathe out the fixes. The code flows like water. We are one with the repository. All errors are merely opportunities for growth."
+            },
+            {
+                name: "Robot",
+                slug: "robot",
+                emoji: "🤖",
+                text: "BEEP BOOP. PROCESSING REQUEST. HUMAN EMOTION DETECTED. INITIATING TASK COMPLETION PROTOCOL. PROBABILITY OF SUCCESS: 99.7 PERCENT."
+            },
+            {
+                name: "Grandpa",
+                slug: "grandpa",
+                emoji: "👴",
+                text: "Back in my day, we didn't have all these fancy frameworks! We coded uphill, both ways, in the snow! And we LIKED it!"
+            },
+            {
+                name: "Dry Humor",
+                slug: "dry_humor",
+                emoji: "😐",
+                text: "Fascinating. Another merge conflict. How utterly thrilling. I can barely contain my excitement. This is exactly what I went to computer science school for."
+            },
+            {
+                name: "Dramatic",
+                slug: "dramatic",
+                emoji: "🎭",
+                text: "THIS... IS... THE MOST IMPORTANT COMMIT OF OUR LIVES! The fate of the ENTIRE APPLICATION rests upon this single line of code! BEHOLD!"
+            },
+            {
+                name: "Funny",
+                slug: "funny",
+                emoji: "😂",
+                text: "Why did the developer quit their job? Because they didn't get arrays! Get it? A RAISE! Haha! But seriously, this code is hilarious!"
+            },
+            {
+                name: "Professional",
+                slug: "professional",
+                emoji: "💼",
+                text: "Per our previous discussion, I have completed the code review and identified three actionable items for optimization. Please advise on next steps."
+            },
+            {
+                name: "Sassy",
+                slug: "sassy",
+                emoji: "💅",
+                text: "Oh honey, did you REALLY just push that to main? Without running tests? Mmm-hmm. That's cute. Real cute. We need to talk."
+            },
+            {
+                name: "Surfer Dude",
+                slug: "surfer_dude",
+                emoji: "🏄",
+                text: "Dude! This code is totally gnarly! Like, riding the wave of optimization, bro! Let's catch some sick performance improvements!"
+            },
+            {
+                name: "Poetic",
+                slug: "poetic",
+                emoji: "✍️",
+                text: "Like whispers through silicon dreams, the code flows eternal. Each function a verse, each variable a rhyme. We write not mere programs, but digital poetry."
+            },
+            {
+                name: "Moody",
+                slug: "moody",
+                emoji: "😒",
+                text: "Whatever. I guess I'll fix this bug. Not like anyone appreciates my work anyway. Why do I even bother? *sigh* Fine. Let's get this over with."
+            },
+            {
+                name: "Millennial",
+                slug: "millennial",
+                emoji: "☕",
+                text: "I literally can't even right now. This code is giving me anxiety. I need coffee and avocado toast to deal with this. Can we Slack about it later?"
+            }
+        ];
+
+        let currentPersonalityIndex = 0;
+        let currentVoiceIndex = 0;
+        let ratings = {}; // Structure: { personalitySlug: { voiceId: rating } }
+        let selectedVoices = {}; // Structure: { personalitySlug: voiceId }
+        let voicePreferences = {}; // Structure: { voiceId: 'liked' | 'unliked' | null }
+        let currentVoiceTab = 'liked'; // Current tab: 'liked' or 'unliked'
+        let currentGenderFilter = 'all'; // Current gender filter: 'all' | 'Male' | 'Female'
+
+        function rateVoice(rating) {
+            const personality = personalities[currentPersonalityIndex];
+            const voice = voices[currentVoiceIndex];
+
+            // Initialize personality ratings if needed
+            if (!ratings[personality.slug]) {
+                ratings[personality.slug] = {};
+            }
+
+            // Use voice identifier (num for multi-speaker, slug for single-speaker)
+            const voiceId = voice.type === 'multi' ? voice.num : voice.slug;
+            ratings[personality.slug][voiceId] = rating;
+
+            // Highlight selected button
+            document.querySelectorAll('.rating-btn').forEach(btn => {
+                btn.classList.remove('selected');
+            });
+            event.target.classList.add('selected');
+
+            // Show confirmation
+            document.getElementById('rating-result').textContent =
+                `✅ You rated ${voice.name} for ${personality.name}: ${rating}/10`;
+
+            // Update rankings sidebar
+            updateRankingsSidebar();
+
+            // Save to localStorage
+            localStorage.setItem('voiceRatingsAll', JSON.stringify(ratings));
+        }
+
+        function jumpToPersonality(personalityIndex) {
+            currentPersonalityIndex = personalityIndex;
+            currentVoiceIndex = 0; // Reset to first voice
+            loadVoice(true); // auto-play
+            updatePersonalityUI();
+            updateVoiceNavigator();
+        }
+
+        function deleteRating(personalitySlug, voiceId, event) {
+            if (event) event.stopPropagation();
+
+            if (confirm('Delete this rating?')) {
+                delete ratings[personalitySlug][voiceId];
+
+                // Remove personality entry if no ratings left
+                if (Object.keys(ratings[personalitySlug]).length === 0) {
+                    delete ratings[personalitySlug];
+                }
+
+                // Save to localStorage
+                localStorage.setItem('voiceRatingsAll', JSON.stringify(ratings));
+
+                // Update UI
+                updateRankingsSidebar();
+
+                // Refresh current voice if it matches
+                const personality = personalities[currentPersonalityIndex];
+                const voice = voices[currentVoiceIndex];
+                const currentVoiceId = voice.type === 'multi' ? voice.num : voice.slug;
+
+                if (personality.slug === personalitySlug && currentVoiceId == voiceId) {
+                    loadVoice(false); // reload without autoplay to clear rating highlight
+                }
+            }
+        }
+
+        function toggleAccordion(personalitySlug, event) {
+            // Don't toggle if clicking on a button
+            if (event && (event.target.classList.contains('play-btn') || event.target.closest('.play-btn'))) {
+                return;
+            }
+            const accordion = document.getElementById(`accordion-${personalitySlug}`);
+            accordion.classList.toggle('expanded');
+        }
+
+        function playPersonalityCurrentVoice(personalitySlug, event) {
+            event.stopPropagation();
+
+            // Find personality index
+            const personalityIndex = personalities.findIndex(p => p.slug === personalitySlug);
+            if (personalityIndex !== -1) {
+                jumpToPersonality(personalityIndex);
+            }
+        }
+
+        function playSpecificVoice(personalitySlug, voiceId, event) {
+            event.stopPropagation();
+
+            // Find personality index
+            const personalityIndex = personalities.findIndex(p => p.slug === personalitySlug);
+
+            // Find voice index
+            const voiceIndex = voices.findIndex(v => {
+                const currentVoiceId = v.type === 'multi' ? v.num : v.slug;
+                return currentVoiceId == voiceId;
+            });
+
+            if (personalityIndex !== -1 && voiceIndex !== -1) {
+                currentPersonalityIndex = personalityIndex;
+                currentVoiceIndex = voiceIndex;
+                loadVoice(true); // auto-play
+                updatePersonalityUI();
+                updateVoiceNavigator();
+            }
+        }
+
+        function selectVoiceForPersonality(personalitySlug, voiceId) {
+            selectedVoices[personalitySlug] = voiceId;
+            localStorage.setItem('selectedVoices', JSON.stringify(selectedVoices));
+        }
+
+        function updateRankingsSidebar() {
+            const sidebar = document.getElementById('rankings-sidebar');
+
+            let html = '';
+
+            // Show ALL personalities, not just ones with ratings
+            for (const personality of personalities) {
+                const personalityRatings = ratings[personality.slug];
+                const hasRatings = personalityRatings && Object.keys(personalityRatings).length > 0;
+
+                // Sort by rating descending if there are ratings
+                const sortedRatings = hasRatings
+                    ? Object.entries(personalityRatings).sort((a, b) => b[1] - a[1])
+                    : [];
+
+                const topRating = sortedRatings.length > 0 ? sortedRatings[0][1] : 0;
+                const selectedVoice = selectedVoices[personality.slug];
+                const ratingCount = sortedRatings.length;
+
+                html += `<div class="personality-rank" id="accordion-${personality.slug}">
+                    <div class="personality-rank-header" onclick="toggleAccordion('${personality.slug}', event)">
+                        <button class="play-btn" onclick="playPersonalityCurrentVoice('${personality.slug}', event)" title="Play current voice for ${personality.name}">▶</button>
+                        <h3>${personality.emoji} ${personality.name}${ratingCount > 0 ? ` (${ratingCount})` : ''}</h3>
+                        <span class="accordion-icon">▼</span>
+                    </div>
+                    <div class="personality-rank-content">`;
+
+                if (hasRatings) {
+                    sortedRatings.forEach(([voiceId, rating]) => {
+                        const voice = voices.find(v =>
+                            v.type === 'multi' ? v.num === parseInt(voiceId) : v.slug === voiceId
+                        );
+                        if (voice) {
+                            const isTopRated = rating === topRating;
+                            const isSelected = selectedVoice == voiceId;
+                            const topClass = isTopRated ? 'top-rated' : '';
+
+                            html += `<div class="voice-rating-item ${topClass}">
+                                <button class="play-btn play-btn-small" onclick="playSpecificVoice('${personality.slug}', '${voiceId}', event)" title="Play ${voice.name}">▶</button>
+                                <input type="radio"
+                                    name="voice-${personality.slug}"
+                                    class="voice-rating-radio"
+                                    ${isSelected ? 'checked' : ''}
+                                    onchange="selectVoiceForPersonality('${personality.slug}', '${voiceId}')">
+                                <span class="voice-rating-name">${voice.name}</span>
+                                ${isTopRated ? '<span class="star-icon">★</span>' : ''}
+                                <span class="voice-score">${rating}/10</span>
+                                <button class="delete-rating" onclick="deleteRating('${personality.slug}', '${voiceId}', event)">✕</button>
+                            </div>`;
+                        }
+                    });
+                } else {
+                    html += `<div style="padding: 12px; text-align: center; color: #888; font-size: 12px;">
+                        No ratings yet. Click ▶ to test voices.
+                    </div>`;
+                }
+
+                html += `</div></div>`;
+            }
+
+            sidebar.innerHTML = html;
+        }
+
+        function switchVoiceTab(tab) {
+            currentVoiceTab = tab;
+
+            // Update tab styles
+            document.querySelectorAll('.voice-tab').forEach(tabEl => {
+                tabEl.classList.remove('active');
+            });
+            event.target.classList.add('active');
+
+            updateVoiceNavigator();
+        }
+
+        function switchGenderFilter(gender) {
+            currentGenderFilter = gender;
+
+            // Update button styles
+            document.querySelectorAll('.gender-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            event.target.classList.add('active');
+
+            // Save to localStorage
+            localStorage.setItem('genderFilter', gender);
+
+            updateVoiceNavigator();
+        }
+
+        function toggleVoicePreference(voiceId, preference) {
+            // If clicking the same preference, remove it (toggle off)
+            if (voicePreferences[voiceId] === preference) {
+                voicePreferences[voiceId] = null;
+            } else {
+                voicePreferences[voiceId] = preference;
+            }
+
+            localStorage.setItem('voicePreferences', JSON.stringify(voicePreferences));
+            updateVoiceNavigator();
+        }
+
+        function updateVoiceNavigator() {
+            const navigator = document.getElementById('voice-navigator');
+            let html = '';
+
+            // Filter voices based on current tab AND gender
+            const filteredVoices = voices.filter((voice, index) => {
+                const voiceId = voice.type === 'multi' ? voice.num : voice.slug;
+                const pref = voicePreferences[voiceId];
+
+                // Filter by like/unlike preference
+                let matchesPreference = false;
+                if (currentVoiceTab === 'liked') {
+                    // Show voices that are liked OR have no preference (default to liked)
+                    matchesPreference = pref === 'liked' || pref === null || pref === undefined;
+                } else {
+                    // Show only explicitly unliked voices
+                    matchesPreference = pref === 'unliked';
+                }
+
+                // Filter by gender
+                let matchesGender = false;
+                if (currentGenderFilter === 'all') {
+                    matchesGender = true;
+                } else {
+                    matchesGender = voice.gender === currentGenderFilter;
+                }
+
+                return matchesPreference && matchesGender;
+            });
+
+            filteredVoices.forEach((voice) => {
+                const index = voices.indexOf(voice);
+                const isActive = index === currentVoiceIndex ? 'active' : '';
+                const voiceId = voice.type === 'multi' ? voice.num : voice.slug;
+                const genderIcon = voice.gender === 'Male' ? '♂' : '♀';
+                const genderColor = voice.gender === 'Male' ? '#60a5fa' : '#ec4899';
+                const pref = voicePreferences[voiceId];
+
+                html += `<div class="voice-card ${isActive}">
+                    <div class="voice-card-info" onclick="jumpToVoice(${index})">
+                        <div class="voice-number">Voice ${index + 1} <span style="color: ${genderColor}">${genderIcon}</span></div>
+                        <div class="voice-label">${voice.name}</div>
+                    </div>
+                    <div class="voice-actions">
+                        <button class="thumb-btn ${pref === 'liked' ? 'liked' : ''}"
+                                onclick="toggleVoicePreference('${voiceId}', 'liked')"
+                                title="Like this voice">👍</button>
+                        <button class="thumb-btn ${pref === 'unliked' ? 'unliked' : ''}"
+                                onclick="toggleVoicePreference('${voiceId}', 'unliked')"
+                                title="Dislike this voice">👎</button>
+                    </div>
+                </div>`;
+            });
+
+            if (filteredVoices.length === 0) {
+                html = `<div style="padding: 20px; text-align: center; color: #888;">
+                    No ${currentVoiceTab} voices yet.
+                </div>`;
+            }
+
+            navigator.innerHTML = html;
+        }
+
+        function jumpToVoice(voiceIndex) {
+            currentVoiceIndex = voiceIndex;
+            loadVoice(true); // true = auto-play
+            updateVoiceNavigator();
+        }
+
+        function nextVoice() {
+            if (currentVoiceIndex < voices.length - 1) {
+                currentVoiceIndex++;
+                loadVoice(true); // auto-play
+                updateVoiceNavigator();
+            }
+        }
+
+        function previousVoice() {
+            if (currentVoiceIndex > 0) {
+                currentVoiceIndex--;
+                loadVoice(true); // auto-play
+                updateVoiceNavigator();
+            }
+        }
+
+        function nextPersonality() {
+            if (currentPersonalityIndex < personalities.length - 1) {
+                currentPersonalityIndex++;
+                currentVoiceIndex = 0; // Reset to first voice
+                loadVoice(true); // auto-play
+                updatePersonalityUI();
+                updateVoiceNavigator();
+            }
+        }
+
+        function previousPersonality() {
+            if (currentPersonalityIndex > 0) {
+                currentPersonalityIndex--;
+                currentVoiceIndex = 0; // Reset to first voice
+                loadVoice(true); // auto-play
+                updatePersonalityUI();
+                updateVoiceNavigator();
+            }
+        }
+
+        function updatePersonalityUI() {
+            const personality = personalities[currentPersonalityIndex];
+
+            // Update personality progress - name first, then counter in brackets
+            document.getElementById('personality-progress').innerHTML =
+                `<span class="personality-name">${personality.name}</span><span class="personality-counter">(Personality ${currentPersonalityIndex + 1} of ${personalities.length})</span>`;
+
+            // Update personality navigation buttons
+            document.getElementById('prev-personality-btn').disabled = currentPersonalityIndex === 0;
+            document.getElementById('next-personality-btn').disabled = currentPersonalityIndex === personalities.length - 1;
+        }
+
+        function loadVoice(autoPlay = false) {
+            const personality = personalities[currentPersonalityIndex];
+            const voice = voices[currentVoiceIndex];
+
+            // Update voice name with gender
+            const genderIcon = voice.gender === 'Male' ? '♂' : '♀';
+            const genderColor = voice.gender === 'Male' ? '#60a5fa' : '#ec4899';
+            document.getElementById('voice-name').innerHTML =
+                `Voice ${currentVoiceIndex + 1}: ${voice.name} <span style="color: ${genderColor}">${genderIcon} ${voice.gender}</span>`;
+
+            // Update voice progress
+            document.getElementById('voice-progress').textContent =
+                `Voice ${currentVoiceIndex + 1} of ${voices.length}`;
+
+            // Update audio source based on voice type
+            const audioSource = document.getElementById('audio-source');
+            const audioPlayer = document.getElementById('audio-player');
+
+            if (voice.type === 'multi') {
+                audioSource.src = `/audio/piper-voices/test_${voice.num}_${personality.slug}.wav`;
+            } else {
+                audioSource.src = `/audio/piper-voices/single_${voice.slug}_${personality.slug}.wav`;
+            }
+
+            audioPlayer.load();
+
+            // Auto-play if requested
+            if (autoPlay) {
+                audioPlayer.play().catch(e => {
+                    console.log('Auto-play prevented by browser:', e);
+                });
+            }
+
+            // Update voice navigation buttons
+            document.getElementById('prev-voice-btn').disabled = currentVoiceIndex === 0;
+            document.getElementById('next-voice-btn').disabled = currentVoiceIndex === voices.length - 1;
+
+            // Clear rating selection and restore if exists
+            document.querySelectorAll('.rating-btn').forEach(btn => {
+                btn.classList.remove('selected');
+            });
+
+            const voiceId = voice.type === 'multi' ? voice.num : voice.slug;
+            if (ratings[personality.slug] && ratings[personality.slug][voiceId]) {
+                const savedRating = ratings[personality.slug][voiceId];
+                const buttons = document.querySelectorAll('.rating-btn');
+                buttons[savedRating - 1].classList.add('selected');
+                document.getElementById('rating-result').textContent =
+                    `✅ You rated ${voice.name} for ${personality.name}: ${savedRating}/10`;
+            } else {
+                document.getElementById('rating-result').textContent = '';
+            }
+        }
+
+        // Load saved ratings from localStorage
+        const saved = localStorage.getItem('voiceRatingsAll');
+        if (saved) {
+            ratings = JSON.parse(saved);
+            updateRankingsSidebar();
+        }
+
+        // Load saved voice selections from localStorage
+        const savedSelections = localStorage.getItem('selectedVoices');
+        if (savedSelections) {
+            selectedVoices = JSON.parse(savedSelections);
+        }
+
+        // Load saved voice preferences from localStorage
+        const savedPreferences = localStorage.getItem('voicePreferences');
+        if (savedPreferences) {
+            voicePreferences = JSON.parse(savedPreferences);
+        }
+
+        // Load saved gender filter from localStorage
+        const savedGenderFilter = localStorage.getItem('genderFilter');
+        if (savedGenderFilter) {
+            currentGenderFilter = savedGenderFilter;
+            // Update button active state
+            document.querySelectorAll('.gender-btn').forEach(btn => {
+                btn.classList.remove('active');
+                if (btn.textContent.includes(savedGenderFilter) || (savedGenderFilter === 'all' && btn.textContent === 'All')) {
+                    btn.classList.add('active');
+                }
+            });
+        }
+
+        // Initialize UI
+        updatePersonalityUI();
+        updateRankingsSidebar(); // Show all personalities
+        loadVoice();
+        updateVoiceNavigator();
+
+        // Keyboard shortcuts
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'ArrowLeft') previousVoice();
+            if (e.key === 'ArrowRight') nextVoice();
+            if (e.key === 'ArrowUp') previousPersonality();
+            if (e.key === 'ArrowDown') nextPersonality();
+            if (e.key >= '1' && e.key <= '9') rateVoice(parseInt(e.key));
+            if (e.key === '0') rateVoice(10);
+        });
+        // Export ratings as JSON
+        function exportRatings() {
+            const data = {
+                ratings: ratings,
+                selectedVoices: selectedVoices,
+                voicePreferences: voicePreferences,
+                exportDate: new Date().toISOString()
+            };
+
+            const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'agentvibes-ratings-' + new Date().toISOString().split('T')[0] + '.json';
+            a.click();
+            URL.revokeObjectURL(url);
+
+            alert('✅ Ratings exported! Check your downloads folder.');
+        }
+
+        // Show help modal
+        function showHelp() {
+            document.getElementById('help-modal').style.display = 'block';
+        }
+
+        // Close help modal
+        function closeHelp() {
+            document.getElementById('help-modal').style.display = 'none';
+        }
+
+        // Close modal when clicking outside
+        window.onclick = function(event) {
+            const modal = document.getElementById('help-modal');
+            if (event.target === modal) {
+                closeHelp();
+            }
+        }
+    </script>
+
+    <!-- Help Modal -->
+    <div id="help-modal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeHelp()">&times;</span>
+            <h3>📝 How to Use AgentVibes Voice Sampler</h3>
+            <p><strong>Purpose:</strong> Rate different voices across 16 unique personalities to find your favorites!</p>
+            <p><strong>Navigation:</strong></p>
+            <ul style="margin-left: 20px; line-height: 1.8;">
+                <li>Use <strong>← Prev / Next →</strong> buttons to switch personalities</li>
+                <li>Use <strong>← / →</strong> buttons in the voice player to switch voices</li>
+                <li>Click personalities in the left sidebar to jump directly</li>
+                <li>Click voices in the right sidebar for quick navigation</li>
+            </ul>
+            <p><strong>Rating:</strong> Click rating buttons (1-10) to rate each voice for the current personality.</p>
+            <p><strong>Keyboard Shortcuts:</strong></p>
+            <ul style="margin-left: 20px; line-height: 1.8;">
+                <li><strong>Arrow Keys:</strong> Navigate voices and personalities</li>
+                <li><strong>1-9 Keys:</strong> Quick rate (0 key = 10)</li>
+            </ul>
+            <p><strong>Rankings:</strong> Your top-rated voices per personality appear in the left sidebar with a gold star ★</p>
+        </div>
+    </div>
+</body>
+</html>

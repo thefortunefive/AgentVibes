@@ -1,0 +1,127 @@
+{
+  "version": "1.0",
+  "description": "Optimal Piper TTS voice mappings for AgentVibes personalities based on user testing",
+  "lastUpdated": "2025-10-18",
+  "personalities": {
+    "angry": {
+      "voice": "en_gb_alan",
+      "voiceName": "English (GB) - Alan",
+      "gender": "Male",
+      "rating": 10,
+      "description": "Strong, assertive British male voice perfect for expressing frustration"
+    },
+    "flirty": {
+      "voice": 0,
+      "voiceName": "Cori Samuel",
+      "gender": "Female",
+      "rating": 10,
+      "description": "Warm, playful female voice ideal for charming interactions"
+    },
+    "grandpa": {
+      "voice": 4,
+      "voiceName": "Grandpa Spuds Oxley",
+      "gender": "Male",
+      "rating": 10,
+      "description": "Classic elderly male voice with character and wisdom"
+    },
+    "funny": {
+      "voice": "en_gb_semaine",
+      "voiceName": "English (GB) - Semaine",
+      "gender": "Female",
+      "rating": 10,
+      "description": "Expressive British female voice great for comedic timing"
+    },
+    "sassy": {
+      "voice": 0,
+      "voiceName": "Cori Samuel",
+      "gender": "Female",
+      "rating": 10,
+      "description": "Confident, attitude-filled female voice"
+    },
+    "dramatic": {
+      "voice": 0,
+      "voiceName": "Cori Samuel",
+      "gender": "Female",
+      "rating": 10,
+      "description": "Dynamic female voice perfect for theatrical delivery"
+    },
+    "professional": {
+      "voice": "en_gb_alan",
+      "voiceName": "English (GB) - Alan",
+      "gender": "Male",
+      "rating": 10,
+      "description": "Polished, articulate British male voice for business contexts"
+    },
+    "poetic": {
+      "voice": 2,
+      "voiceName": "Rebecca Chernoff",
+      "gender": "Female",
+      "rating": 10,
+      "description": "Smooth, melodic female voice ideal for lyrical content"
+    },
+    "dry_humor": {
+      "voice": 0,
+      "voiceName": "Cori Samuel",
+      "gender": "Female",
+      "rating": 10,
+      "description": "Deadpan female delivery perfect for ironic humor"
+    },
+    "moody": {
+      "voice": 8,
+      "voiceName": "David Dittlinger",
+      "gender": "Male",
+      "rating": 10,
+      "description": "Brooding male voice with emotional depth"
+    },
+    "millennial": {
+      "voice": 13,
+      "voiceName": "Angelina Smith",
+      "gender": "Female",
+      "rating": 10,
+      "description": "Contemporary female voice with modern inflection"
+    },
+    "sarcastic": {
+      "voice": 2,
+      "voiceName": "Rebecca Chernoff",
+      "gender": "Female",
+      "rating": 10,
+      "description": "Sharp female voice excellent for sardonic delivery"
+    },
+    "zen": {
+      "voice": 14,
+      "voiceName": "Nicole Davis",
+      "gender": "Female",
+      "rating": 10,
+      "description": "Calm, soothing female voice for peaceful interactions"
+    },
+    "surfer_dude": {
+      "voice": "en_gb_alan",
+      "voiceName": "English (GB) - Alan",
+      "gender": "Male",
+      "rating": 10,
+      "description": "Laid-back British male voice (surprisingly works for chill vibes)"
+    },
+    "pirate": {
+      "voice": 15,
+      "voiceName": "Benjamin Carter",
+      "gender": "Male",
+      "rating": 10,
+      "description": "Rugged male voice perfect for swashbuckling adventures"
+    },
+    "robot": {
+      "voice": 0,
+      "voiceName": "Cori Samuel",
+      "gender": "Female",
+      "rating": "unrated",
+      "description": "Default voice (not yet rated by user)"
+    }
+  },
+  "voiceModels": {
+    "multiSpeaker": "/home/fire/claude/AgentVibes/mcp-server/voices/16Speakers.onnx",
+    "singleSpeakers": {
+      "en_gb_alan": "/home/fire/claude/piper-voices/en/en_GB/alan/medium/en_GB-alan-medium.onnx",
+      "en_gb_semaine": "/home/fire/claude/piper-voices/en/en_GB/semaine/medium/en_GB-semaine-medium.onnx",
+      "es_mx_claude": "/home/fire/claude/piper-voices/es/es_MX/claude/high/es_MX-claude-high.onnx"
+    }
+  }
+}

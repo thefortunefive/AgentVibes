@@ -169,6 +169,15 @@ echo ""
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo "🎉 Piper TTS Setup Complete!"
 echo ""
+
+# Install personality voice defaults
+if [[ -f "$SCRIPT_DIR/install-personality-defaults.sh" ]]; then
+  echo "📥 Installing default personality voice mappings..."
+  echo ""
+  "$SCRIPT_DIR/install-personality-defaults.sh"
+  echo ""
+fi
+
 echo "Next steps:"
 echo "  1. Download more voices: .claude/hooks/piper-download-voices.sh"
 echo "  2. List available voices: /agent-vibes:list"

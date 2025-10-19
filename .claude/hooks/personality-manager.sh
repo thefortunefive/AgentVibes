@@ -187,10 +187,23 @@ case "$1" in
     # Get the appropriate voice based on provider
     ASSIGNED_VOICE=""
     if [[ "$ACTIVE_PROVIDER" == "piper" ]]; then
-      # Try to get Piper-specific voice first
-      ASSIGNED_VOICE=$(get_personality_data "$PERSONALITY" "piper_voice")
+      # First, check user ratings-based defaults (highest priority)
+      DEFAULTS_FILE="$CLAUDE_DIR/personality-voice-defaults.json"
+      if [[ -f "$DEFAULTS_FILE" ]] && command -v jq &> /dev/null; then
+        ASSIGNED_VOICE=$(jq -r ".mappings.\"$PERSONALITY\".voice // empty" "$DEFAULTS_FILE" 2>/dev/null)
+        if [[ -n "$ASSIGNED_VOICE" ]]; then
+          VOICE_NAME=$(jq -r ".mappings.\"$PERSONALITY\".display_name // \"Custom Voice\"" "$DEFAULTS_FILE" 2>/dev/null)
+          echo "⭐ Using your top-rated voice: $VOICE_NAME"
+        fi
+      fi
+
+      # Fallback: Try to get Piper-specific voice from personality file
       if [[ -z "$ASSIGNED_VOICE" ]]; then
-        # Fallback to default Piper voice
+        ASSIGNED_VOICE=$(get_personality_data "$PERSONALITY" "piper_voice")
+      fi
+
+      # Final fallback: Default Piper voice
+      if [[ -z "$ASSIGNED_VOICE" ]]; then
         ASSIGNED_VOICE="en_US-lessac-medium"
       fi
     else

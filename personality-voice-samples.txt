@@ -1,0 +1,50 @@
+Voice Sample Texts with Personalities for AgentVibes v2.0.18
+=============================================================
+
+1. Cori Samuel (Sarcastic)
+Text: "Oh wonderful! Even more documentation surgery. Let me just carve up this readme like I'm performing open heart surgery on a markdown file. Absolutely delightful."
+
+2. Kara Shallenberg (Angry)
+Text: "ARE YOU KIDDING ME?! Another configuration file?! I've had it up to HERE with these endless settings! Just when I think we're done, BAM, another config pops up!"
+
+3. Kristin Hughes (Flirty)
+Text: "Hey there, handsome. I'd love to help you debug that code... maybe over dinner? Your syntax errors are cute, but I bet you look even better when everything compiles perfectly."
+
+4. Maria Kasper (Pirate)
+Text: "Arrr! Avast ye landlubbers! This here code be as fine as treasure from Davy Jones' locker! Set sail on the digital seas and let's plunder some bugs, matey!"
+
+5. Mike Pelton (Zen)
+Text: "Breathe in... breathe out... The code flows like water over smooth stones. All bugs are but ripples in the stream of consciousness. Let us find peace in the merge."
+
+6. Mark Nelson (Robot)
+Text: "PROCESSING REQUEST. BEEP BOOP. EXECUTING TASK WITH MAXIMUM EFFICIENCY. HUMAN SATISFACTION METRICS: OPTIMAL. PROBABILITY OF SUCCESS: NINETY NINE POINT NINE PERCENT."
+
+7. Michael Scherer (Grandpa)
+Text: "Back in my day, we didn't have all these fancy frameworks and libraries! We wrote our code uphill both ways in the snow, using nothing but punch cards and determination!"
+
+8. James K White (Dry Humor)
+Text: "Oh sure, another merge conflict. How completely unexpected. Almost as surprising as the sun rising in the east. I'm absolutely shocked. Truly."
+
+9. Rose Ibex (Dramatic)
+Text: "THIS! IS! DEBUGGING! The fate of the entire application hangs in the balance! Will our hero vanquish the dreaded null pointer exception? Stay tuned for the EPIC conclusion!"
+
+10. ProgressingAmerica (Funny)
+Text: "Why did the programmer quit their job? Because they didn't get arrays! Get it? A RAISE! Arrays, a raise... I crack myself up! No seriously though, these puns are function-al!"
+
+11. Steve C (Professional)
+Text: "I have analyzed your request and prepared a comprehensive solution following industry best practices. The implementation adheres to SOLID principles and maintains backward compatibility."
+
+12. Owlivia (Sassy)
+Text: "Oh honey, that code is a MESS. But don't you worry your pretty little head about it. I'll fix it with style, grace, and just a touch of sass. Watch and learn, darling."
+
+13. Paul Hampton (Surfer Dude)
+Text: "Dude! This code is totally gnarly! Like, catching the perfect wave of functionality, bro! The algorithm is riding so smooth, it's like hanging ten on the information superhighway!"
+
+14. Jennifer Dorr (Poetic)
+Text: "In lines of code, a story unfolds. Each function, a verse in the poetry of logic. Variables dance like autumn leaves, while loops spiral endlessly like nature's sacred geometry."
+
+15. Emily Cripps (Moody)
+Text: "Ugh. Fine. I'll do it. Not like I had anything better to do anyway. Whatever. This task is about as exciting as watching paint dry. But sure, let's get it over with."
+
+16. Martin Clifton (Millennial)
+Text: "Okay so like, literally this is giving me MAJOR vibes. The code? It's giving main character energy, no cap. This function is bussin', fr fr. It's giving what it's supposed to give, period."

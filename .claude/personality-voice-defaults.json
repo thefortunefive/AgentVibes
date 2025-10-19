@@ -1,0 +1,21 @@
+{
+  "version": "1.0",
+  "description": "Default Piper voice assignments for each personality",
+  "mappings": {
+    "angry": {"voice": "en_GB-alan-medium", "rating": 10, "display_name": "English GB - Alan"},
+    "dramatic": {"voice": "16Speakers#0", "rating": 10, "display_name": "Cori Samuel"},
+    "dry_humor": {"voice": "16Speakers#0", "rating": 10, "display_name": "Cori Samuel"},
+    "flirty": {"voice": "16Speakers#0", "rating": 10, "display_name": "Cori Samuel"},
+    "funny": {"voice": "en_GB-semaine-medium", "rating": 10, "display_name": "English GB - Semaine"},
+    "grandpa": {"voice": "16Speakers#4", "rating": 10, "display_name": "Mike Pelton"},
+    "millennial": {"voice": "16Speakers#13", "rating": 10, "display_name": "Jennifer Dorr"},
+    "moody": {"voice": "16Speakers#8", "rating": 10, "display_name": "Rose Ibex"},
+    "pirate": {"voice": "16Speakers#15", "rating": 10, "display_name": "Martin Clifton"},
+    "poetic": {"voice": "16Speakers#2", "rating": 10, "display_name": "Kristin Hughes"},
+    "professional": {"voice": "en_GB-alan-medium", "rating": 10, "display_name": "English GB - Alan"},
+    "sarcastic": {"voice": "16Speakers#2", "rating": 10, "display_name": "Kristin Hughes"},
+    "sassy": {"voice": "16Speakers#0", "rating": 10, "display_name": "Cori Samuel"},
+    "surfer_dude": {"voice": "en_GB-alan-medium", "rating": 10, "display_name": "English GB - Alan"},
+    "zen": {"voice": "16Speakers#14", "rating": 10, "display_name": "Emily Cripps"}
+  }
+}

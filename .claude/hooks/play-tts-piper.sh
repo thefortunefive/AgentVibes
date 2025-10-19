@@ -41,6 +41,13 @@ export LC_ALL=C
 TEXT="$1"
 VOICE_OVERRIDE="$2"  # Optional: voice model name
 
+# Clean text: remove backslash escapes before punctuation
+# This fixes the issue where escaped punctuation (like \!) is read as "backslash"
+TEXT="${TEXT//\\!/!}"
+TEXT="${TEXT//\\?/?}"
+TEXT="${TEXT//\\./\.}"
+TEXT="${TEXT//\\\"/\"}"
+
 # Source voice manager and language manager
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/piper-voice-manager.sh"
@@ -137,17 +144,32 @@ if [[ "$IS_CUSTOM_VOICE" == "false" ]] && ! verify_voice "$VOICE_MODEL_BASE"; th
   echo "   File size: ~25MB"
   echo "   Preview: https://huggingface.co/rhasspy/piper-voices"
   echo ""
-  read -p "   Download this voice model? [y/N]: " -n 1 -r
-  echo
 
-  if [[ $REPLY =~ ^[Yy]$ ]]; then
+  # Detect if running in non-interactive environment (Claude Code, Claude Desktop, scripts)
+  # Check if: stdin is not a terminal OR CLAUDE_PROJECT_DIR is set (MCP context)
+  AUTO_DOWNLOAD=false
+  if [[ ! -t 0 ]] || [[ -n "$CLAUDE_PROJECT_DIR" ]] || [[ -n "$MCP_SESSION" ]]; then
+    AUTO_DOWNLOAD=true
+    echo "   🤖 Auto-downloading (non-interactive environment)..."
+  else
+    # Interactive terminal - ask user
+    read -p "   Download this voice model? [Y/n]: " -n 1 -r
+    echo
+    if [[ $REPLY =~ ^[Yy]$ ]] || [[ -z $REPLY ]]; then
+      AUTO_DOWNLOAD=true
+    fi
+  fi
+
+  if [[ "$AUTO_DOWNLOAD" == "true" ]]; then
     if ! download_voice "$VOICE_MODEL_BASE"; then
       echo "❌ Failed to download voice model"
-      echo "Fix: Download manually or choose different voice"
+      echo "Fix: Download manually with: .claude/hooks/piper-download-voices.sh"
+      echo "     Or choose a different voice"
       exit 3
     fi
   else
     echo "❌ Voice download cancelled"
+    echo "💡 To download later: .claude/hooks/piper-download-voices.sh"
     exit 3
   fi
 fi

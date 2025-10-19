@@ -1,0 +1,55 @@
+{
+  "ratings": {
+    "angry": {
+      "0": 2,
+      "2": 8,
+      "15": 9,
+      "en_gb_alan": 10
+    },
+    "flirty": {
+      "0": 10
+    },
+    "grandpa": {
+      "4": 10
+    },
+    "funny": {
+      "en_gb_semaine": 10
+    },
+    "sassy": {
+      "0": 10
+    },
+    "dramatic": {
+      "0": 10
+    },
+    "professional": {
+      "en_gb_alan": 10
+    },
+    "poetic": {
+      "2": 10
+    },
+    "dry_humor": {
+      "0": 10
+    },
+    "moody": {
+      "8": 10
+    },
+    "millennial": {
+      "13": 10
+    },
+    "sarcastic": {
+      "2": 10
+    },
+    "zen": {
+      "14": 10
+    },
+    "surfer_dude": {
+      "en_gb_alan": 10
+    },
+    "pirate": {
+      "15": 10
+    }
+  },
+  "selectedVoices": {},
+  "voicePreferences": {},
+  "exportDate": "2025-10-18T20:46:08.576Z"
+}

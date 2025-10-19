@@ -50,12 +50,14 @@ if [[ "$1" == "--yes" ]] || [[ "$1" == "-y" ]]; then
 fi
 
 # Common voice models to download from HuggingFace (official Piper voices)
+# Includes voices used in default personality mappings
 COMMON_VOICES=(
   "en_US-lessac-medium"      # Default, clear male
+  "en_GB-alan-medium"        # British male (used in: angry, professional, surfer_dude)
+  "en_GB-semaine-medium"     # British female (used in: funny)
   "en_US-amy-medium"         # Warm female
   "en_US-joe-medium"         # Professional male
   "en_US-ryan-high"          # Expressive male
-  "en_US-libritts-high"      # Premium quality
 )
 
 # Custom high-quality voices from AgentVibes HuggingFace repository

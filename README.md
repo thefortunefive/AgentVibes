@@ -318,6 +318,7 @@ AgentVibes supports **custom personalities**, **custom voices**, and **integrati
 
 ### AgentVibes Resources
 
+- 🎤 **[Voice Tester](voice-tester/)** - Interactive web app to test and rate voices across 16 personalities
 - 📊 **[Usage Dashboard](https://elevenlabs.io/app/usage)** - Monitor ElevenLabs usage
 - 💳 **[Pricing Page](https://elevenlabs.io/pricing)** - ElevenLabs plans
 - 🐛 **[Issues](https://github.com/paulpreibisch/AgentVibes/issues)** - Report bugs

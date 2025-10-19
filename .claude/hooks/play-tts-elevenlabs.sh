@@ -42,6 +42,13 @@ TEXT="$1"
 VOICE_OVERRIDE="$2"  # Optional: voice name or direct voice ID
 API_KEY="${ELEVENLABS_API_KEY}"
 
+# Clean text: remove backslash escapes before punctuation
+# This fixes the issue where escaped punctuation (like \!) is read as "backslash"
+TEXT="${TEXT//\\!/!}"
+TEXT="${TEXT//\\?/?}"
+TEXT="${TEXT//\\./\.}"
+TEXT="${TEXT//\\\"/\"}"
+
 # Check for project-local pretext configuration
 CONFIG_DIR="${CLAUDE_PROJECT_DIR:-.}/.claude/config"
 CONFIG_FILE="$CONFIG_DIR/agentvibes.json"
