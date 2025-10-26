@@ -2,65 +2,65 @@
   "folders": [
     {
       "path": ".",
-      "name": "🎤 AgentVibes - Root"
+      "name": "\ud83c\udfa4 AgentVibes - Root"
     },
     {
       "path": "src",
-      "name": "📝 Source Code"
+      "name": "\ud83d\udcdd Source Code"
     },
     {
       "path": ".claude",
-      "name": "🤖 Claude Config"
+      "name": "\ud83e\udd16 Claude Config"
     },
     {
       "path": ".claude/commands",
-      "name": "⚡ Slash Commands"
+      "name": "\u26a1 Slash Commands"
     },
     {
       "path": ".claude/hooks",
-      "name": "🔗 TTS Hooks & Managers"
+      "name": "\ud83d\udd17 TTS Hooks & Managers"
     },
     {
       "path": ".claude/personalities",
-      "name": "🎭 Voice Personalities"
+      "name": "\ud83c\udfad Voice Personalities"
     },
     {
       "path": ".bmad-core",
-      "name": "🧠 BMAD Core"
+      "name": "\ud83e\udde0 BMAD Core"
     },
     {
       "path": "docs",
-      "name": "📚 Documentation"
+      "name": "\ud83d\udcda Documentation"
     },
     {
       "path": "scripts",
-      "name": "🔧 Scripts & Tools"
+      "name": "\ud83d\udd27 Scripts & Tools"
     },
     {
       "path": "templates",
-      "name": "📄 Templates"
+      "name": "\ud83d\udcc4 Templates"
     },
     {
       "path": ".github",
-      "name": "🐙 GitHub Actions"
+      "name": "\ud83d\udc19 GitHub Actions"
     },
     {
       "path": "demo-audio",
-      "name": "🎵 Demo Audio"
+      "name": "\ud83c\udfb5 Demo Audio"
     },
     {
       "path": "test",
-      "name": "🧪 Tests"
+      "name": "\ud83e\uddea Tests"
     },
     {
-      "path": "agentvibes.org/Screenshots",
-      "name": "📸 Screenshots"
+      "path": "screenshots",
+      "name": "\ud83d\udcf8 Screenshots"
     }
   ],
   "settings": {
     "workbench.colorCustomizations": {
       "activityBar.activeBorder": "#a78bfa",
-      "statusBar.noFolderBackground": "#7c3aed",
+      "statusBar.noFolderBackground": "#5a189a",
       "editorGroupHeader.tabsBackground": "#2c2c2c",
       "tab.activeBorderTop": "#8b5cf6",
       "tab.activeBackground": "#8b5cf620",
@@ -78,14 +78,24 @@
       "gitDecoration.deletedResourceForeground": "#ff6b6b",
       "gitDecoration.untrackedResourceForeground": "#ffd93d",
       "gitDecoration.ignoredResourceForeground": "#606060",
-      "gitDecoration.conflictingResourceForeground": "#ff69b4"
+      "gitDecoration.conflictingResourceForeground": "#ff69b4",
+      "titleBar.activeBackground": "#7b2cbf",
+      "titleBar.activeForeground": "#ffffff",
+      "titleBar.inactiveBackground": "#5a189a",
+      "titleBar.inactiveForeground": "#e0e0e0",
+      "statusBar.background": "#7b2cbf",
+      "statusBar.foreground": "#ffffff",
+      "statusBar.debuggingBackground": "#9d4edd"
     },
-    "window.title": "🎤 AgentVibes ${separator} ${activeEditorShort}",
+    "window.title": "\ud83c\udfa4 AgentVibes ${separator} ${activeEditorShort}",
     "editor.fontSize": 14,
     "editor.fontFamily": "'Fira Code', 'Cascadia Code', Consolas, 'Courier New', monospace",
     "editor.fontLigatures": true,
     "editor.formatOnSave": true,
-    "editor.rulers": [80, 120],
+    "editor.rulers": [
+      80,
+      120
+    ],
     "editor.wordWrap": "on",
     "editor.minimap.enabled": true,
     "terminal.integrated.fontSize": 13,
@@ -136,10 +146,12 @@
     "version": "2.0.0",
     "tasks": [
       {
-        "label": "🎤 Install AgentVibes",
+        "label": "\ud83c\udfa4 Install AgentVibes",
         "type": "shell",
         "command": "npm",
-        "args": ["install"],
+        "args": [
+          "install"
+        ],
         "group": "build",
         "problemMatcher": [],
         "presentation": {
@@ -148,10 +160,12 @@
         }
       },
       {
-        "label": "🧪 Run Tests",
+        "label": "\ud83e\uddea Run Tests",
         "type": "shell",
         "command": "npm",
-        "args": ["test"],
+        "args": [
+          "test"
+        ],
         "group": "test",
         "problemMatcher": [],
         "presentation": {
@@ -160,10 +174,12 @@
         }
       },
       {
-        "label": "🔊 Test Voice",
+        "label": "\ud83d\udd0a Test Voice",
         "type": "shell",
         "command": ".claude/hooks/play-tts.sh",
-        "args": ["'Hello from AgentVibes workspace!'"],
+        "args": [
+          "'Hello from AgentVibes workspace!'"
+        ],
         "group": "none",
         "problemMatcher": [],
         "presentation": {
@@ -172,10 +188,13 @@
         }
       },
       {
-        "label": "📦 Build Package",
+        "label": "\ud83d\udce6 Build Package",
         "type": "shell",
         "command": "npm",
-        "args": ["run", "build"],
+        "args": [
+          "run",
+          "build"
+        ],
         "group": "build",
         "problemMatcher": [],
         "presentation": {
@@ -184,10 +203,12 @@
         }
       },
       {
-        "label": "🔍 Check Version",
+        "label": "\ud83d\udd0d Check Version",
         "type": "shell",
         "command": "npm",
-        "args": ["version"],
+        "args": [
+          "version"
+        ],
         "group": "none",
         "problemMatcher": [],
         "presentation": {
@@ -203,22 +224,34 @@
       {
         "type": "node",
         "request": "launch",
-        "name": "🎤 Debug Installer",
-        "skipFiles": ["<node_internals>/**"],
+        "name": "\ud83c\udfa4 Debug Installer",
+        "skipFiles": [
+          "<node_internals>/**"
+        ],
         "program": "${workspaceFolder}/src/installer.js",
-        "args": ["install"],
+        "args": [
+          "install"
+        ],
         "console": "integratedTerminal",
-        "outFiles": ["${workspaceFolder}/**/*.js"]
+        "outFiles": [
+          "${workspaceFolder}/**/*.js"
+        ]
       },
       {
         "type": "node",
         "request": "launch",
-        "name": "🧪 Debug Tests",
-        "skipFiles": ["<node_internals>/**"],
+        "name": "\ud83e\uddea Debug Tests",
+        "skipFiles": [
+          "<node_internals>/**"
+        ],
         "program": "${workspaceFolder}/node_modules/.bin/jest",
-        "args": ["--runInBand"],
+        "args": [
+          "--runInBand"
+        ],
         "console": "integratedTerminal",
-        "outFiles": ["${workspaceFolder}/**/*.js"]
+        "outFiles": [
+          "${workspaceFolder}/**/*.js"
+        ]
       }
     ]
   },
