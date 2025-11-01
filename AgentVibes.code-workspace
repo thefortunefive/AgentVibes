@@ -78,7 +78,14 @@
       "gitDecoration.deletedResourceForeground": "#ff6b6b",
       "gitDecoration.untrackedResourceForeground": "#ffd93d",
       "gitDecoration.ignoredResourceForeground": "#606060",
-      "gitDecoration.conflictingResourceForeground": "#ff69b4"
+      "gitDecoration.conflictingResourceForeground": "#ff69b4",
+      "titleBar.activeBackground": "#7b2cbf",
+      "titleBar.activeForeground": "#ffffff",
+      "titleBar.inactiveBackground": "#5a189a",
+      "titleBar.inactiveForeground": "#e0e0e0",
+      "statusBar.background": "#7b2cbf",
+      "statusBar.foreground": "#ffffff",
+      "statusBar.debuggingBackground": "#9d4edd"
     },
     "window.title": "\ud83c\udfa4 AgentVibes ${separator} ${activeEditorShort}",
     "editor.fontSize": 14,
