@@ -71,6 +71,33 @@
      "env": {
       "ELEVENLABS_API_KEY": "${ELEVENLABS_API_KEY}"
      }
+    },
+    "sonarqube": {
+      "command": "docker",
+      "args": [
+        "run",
+        "-i",
+        "--name",
+        "sonarqube-mcp-server-agentvibes",
+        "--rm",
+        "-e",
+        "SONARQUBE_TOKEN=${SONARQUBE_TOKEN}",
+        "-e",
+        "SONARQUBE_URL=https://sonarcloud.io",
+        "-e",
+        "SONARQUBE_ORG=${SONARQUBE_ORG}",
+        "-e",
+        "SONARQUBE_PROJECT=${SONARQUBE_PROJECT}",
+        "-v",
+        "/home/fire/claude/AgentVibes/.sonarqube-storage:/storage",
+        "mcp/sonarqube"
+      ],
+      "env": {
+        "SONARQUBE_TOKEN": "${SONARQUBE_TOKEN}",
+        "SONARQUBE_URL": "https://sonarcloud.io",
+        "SONARQUBE_ORG": "${SONARQUBE_ORG}",
+        "SONARQUBE_PROJECT": "${SONARQUBE_PROJECT}"
+      }
     }
   }
 }
