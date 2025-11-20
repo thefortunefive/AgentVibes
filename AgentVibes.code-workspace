@@ -58,9 +58,10 @@
     }
   ],
   "settings": {
+    "window.titleBarStyle": "custom",
     "workbench.colorCustomizations": {
-      "activityBar.activeBorder": "#a78bfa",
       "statusBar.noFolderBackground": "#5a189a",
+      "activityBar.activeBorder": "#a78bfa",
       "editorGroupHeader.tabsBackground": "#2c2c2c",
       "tab.activeBorderTop": "#8b5cf6",
       "tab.activeBackground": "#8b5cf620",
@@ -78,14 +79,7 @@
       "gitDecoration.deletedResourceForeground": "#ff6b6b",
       "gitDecoration.untrackedResourceForeground": "#ffd93d",
       "gitDecoration.ignoredResourceForeground": "#606060",
-      "gitDecoration.conflictingResourceForeground": "#ff69b4",
-      "titleBar.activeBackground": "#7b2cbf",
-      "titleBar.activeForeground": "#ffffff",
-      "titleBar.inactiveBackground": "#5a189a",
-      "titleBar.inactiveForeground": "#e0e0e0",
-      "statusBar.background": "#7b2cbf",
-      "statusBar.foreground": "#ffffff",
-      "statusBar.debuggingBackground": "#9d4edd"
+      "gitDecoration.conflictingResourceForeground": "#ff69b4"
     },
     "window.title": "\ud83c\udfa4 AgentVibes ${separator} ${activeEditorShort}",
     "editor.fontSize": 14,
