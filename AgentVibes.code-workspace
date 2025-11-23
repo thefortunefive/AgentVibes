@@ -80,13 +80,23 @@
       "gitDecoration.untrackedResourceForeground": "#ffd93d",
       "gitDecoration.ignoredResourceForeground": "#606060",
       "gitDecoration.conflictingResourceForeground": "#ff69b4",
-      "titleBar.activeBackground": "#7b2cbf",
-      "titleBar.activeForeground": "#ffffff",
-      "titleBar.inactiveBackground": "#5a189a",
-      "titleBar.inactiveForeground": "#e0e0e0",
-      "statusBar.background": "#7b2cbf",
-      "statusBar.foreground": "#ffffff",
-      "statusBar.debuggingBackground": "#9d4edd"
+      "activityBar.activeBackground": "#ce43fd",
+      "activityBar.background": "#ce43fd",
+      "activityBar.foreground": "#15202b",
+      "activityBar.inactiveForeground": "#15202b99",
+      "activityBarBadge.background": "#fcbd03",
+      "activityBarBadge.foreground": "#15202b",
+      "commandCenter.border": "#e7e7e799",
+      "sash.hoverBorder": "#ce43fd",
+      "statusBar.background": "#c111fc",
+      "statusBar.foreground": "#e7e7e7",
+      "statusBarItem.hoverBackground": "#ce43fd",
+      "statusBarItem.remoteBackground": "#c111fc",
+      "statusBarItem.remoteForeground": "#e7e7e7",
+      "titleBar.activeBackground": "#c111fc",
+      "titleBar.activeForeground": "#e7e7e7",
+      "titleBar.inactiveBackground": "#c111fc99",
+      "titleBar.inactiveForeground": "#e7e7e799"
     },
     "window.title": "\ud83c\udfa4 AgentVibes ${separator} ${activeEditorShort}",
     "editor.fontSize": 14,
@@ -141,7 +151,8 @@
     },
     "[markdown]": {
       "editor.defaultFormatter": "esbenp.prettier-vscode"
-    }
+    },
+    "peacock.remoteColor": "#c111fc"
   },
   "tasks": {
     "version": "2.0.0",
