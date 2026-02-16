@@ -556,7 +556,20 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     refreshVoicesBtn.classList.add('spinning');
     voices = [];  // Clear cache
+
+    // In Fast Mode, give the page context time to respond before fetching
+    if (settings.fastMode) {
+      await new Promise(resolve => setTimeout(resolve, 500));
+    }
+
     await fetchVoices();
+
+    // In Fast Mode, if voices are still empty, retry once with another delay
+    if (settings.fastMode && voices.length === 0) {
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      await fetchVoices();
+    }
+
     setTimeout(() => refreshVoicesBtn.classList.remove('spinning'), 500);
   });
 
