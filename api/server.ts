@@ -729,6 +729,75 @@ app.get('/api/nocodb/search/:tableId', async (c) => {
 });
 
 /**
+ * POST /api/transcribe
+ * Server-side speech-to-text using Groq Whisper API
+ * Accepts audio blob (webm/wav) and returns transcribed text
+ */
+app.post('/api/transcribe', async (c) => {
+  try {
+    // Get the audio blob from the request
+    const body = await c.req.arrayBuffer();
+    const contentType = c.req.header('content-type') || 'audio/webm';
+
+    if (!body || body.byteLength === 0) {
+      return c.json({
+        success: false,
+        error: 'No audio data provided',
+      }, 400);
+    }
+
+    // Groq API key from environment variable
+    const GROQ_API_KEY = process.env.GROQ_API_KEY;
+    if (!GROQ_API_KEY) {
+      return c.json({
+        success: false,
+        error: 'Groq API key not configured. Set GROQ_API_KEY environment variable.',
+      }, 500);
+    }
+
+    // Create form data for Groq Whisper API
+    const formData = new FormData();
+    const audioBlob = new Blob([body], { type: contentType });
+    formData.append('file', audioBlob, 'audio.webm');
+    formData.append('model', 'whisper-large-v3');
+    formData.append('response_format', 'json');
+
+    // Send to Groq Whisper API
+    const response = await fetch('https://api.groq.com/openai/v1/audio/transcriptions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${GROQ_API_KEY}`,
+      },
+      body: formData,
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('Groq Whisper API error:', response.status, errorText);
+      return c.json({
+        success: false,
+        error: `Transcription failed: ${response.status} ${errorText}`,
+      }, 500);
+    }
+
+    const result = await response.json() as { text?: string };
+
+    return c.json({
+      success: true,
+      text: result.text || '',
+      model: 'whisper-large-v3',
+    });
+
+  } catch (error) {
+    console.error('Transcribe endpoint error:', error);
+    return c.json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Transcription failed',
+    }, 500);
+  }
+});
+
+/**
  * GET /audio/*
  * Serve audio files from the audio directory
  */

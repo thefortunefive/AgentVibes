@@ -467,6 +467,11 @@
             to { transform: rotate(360deg); }
         }
 
+        @keyframes pulse-border {
+            0%, 100% { border-color: rgba(233, 69, 96, 0.5); box-shadow: 0 0 0 0 rgba(233, 69, 96, 0.4); }
+            50% { border-color: #e94560; box-shadow: 0 0 15px rgba(233, 69, 96, 0.6); }
+        }
+
         .loading-text {
             color: rgba(255, 255, 255, 0.8);
             font-size: 1rem;
@@ -535,7 +540,8 @@
             isLoading: false,
             messages: [],
             currentAudio: null,
-            recognition: null
+            mediaRecorder: null,
+            audioChunks: []
         };
 
         // DOM Elements
@@ -638,8 +644,8 @@
                 elements.muteIcon.className = state.isMuted ? 'fas fa-volume-xmark' : 'fas fa-volume-high';
             });
 
-            // Microphone - Web Speech API
-            setupSpeechRecognition();
+            // Microphone - MediaRecorder API
+            setupMediaRecorder();
         }
 
         // Set Voice
@@ -847,71 +853,19 @@
             elements.chatMessages.scrollTop = elements.chatMessages.scrollHeight;
         }
 
-        // Web Speech API - Speech Recognition Setup
-        function setupSpeechRecognition() {
+        // MediaRecorder API - Server-side Speech-to-Text Setup
+        function setupMediaRecorder() {
             // Check for browser support
-            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-
-            if (!SpeechRecognition) {
-                // Browser doesn't support Web Speech API - hide mic button
+            if (!navigator.mediaDevices || !window.MediaRecorder) {
+                // Browser doesn't support MediaRecorder - hide mic button
                 elements.micButton.style.display = 'none';
-                console.log('Web Speech API not supported - mic button hidden');
+                console.log('MediaRecorder not supported - mic button hidden');
                 return;
             }
 
-            // Initialize speech recognition
-            state.recognition = new SpeechRecognition();
-            state.recognition.continuous = true;
-            state.recognition.interimResults = true;
-            state.recognition.lang = 'en-US';
-
-            // Handle speech results
-            state.recognition.onresult = (event) => {
-                let interimTranscript = '';
-                let finalTranscript = '';
-
-                for (let i = event.resultIndex; i < event.results.length; i++) {
-                    const transcript = event.results[i][0].transcript;
-                    if (event.results[i].isFinal) {
-                        finalTranscript += transcript;
-                    } else {
-                        interimTranscript += transcript;
-                    }
-                }
-
-                // Update input with interim or final text
-                if (finalTranscript) {
-                    elements.messageInput.value = finalTranscript;
-                    elements.sendButton.disabled = false;
-                } else if (interimTranscript) {
-                    elements.messageInput.value = interimTranscript;
-                    elements.sendButton.disabled = false;
-                }
-            };
-
-            // Handle speech end
-            state.recognition.onend = () => {
-                // Auto-send if we have text and we're stopping
-                const text = elements.messageInput.value.trim();
-                if (text && !state.isRecording) {
-                    sendMessage();
-                }
-                updateMicButtonState(false);
-            };
-
-            // Handle errors
-            state.recognition.onerror = (event) => {
-                console.error('Speech recognition error:', event.error);
-                if (event.error === 'not-allowed') {
-                    showError('Microphone permission denied. Please allow microphone access.');
-                } else if (event.error === 'no-speech') {
-                    // No speech detected - just stop silently
-                    stopRecording();
-                } else {
-                    showError('Speech recognition error: ' + event.error);
-                }
-                stopRecording();
-            };
+            // Initialize MediaRecorder variables
+            state.mediaRecorder = null;
+            state.audioChunks = [];
 
             // Mic button click handler
             elements.micButton.addEventListener('click', toggleRecording);
@@ -919,8 +873,8 @@
 
         // Toggle Recording State
         function toggleRecording() {
-            if (!state.recognition) {
-                showError('Speech recognition not available');
+            if (!navigator.mediaDevices || !window.MediaRecorder) {
+                showError('Audio recording not available');
                 return;
             }
 
@@ -932,17 +886,47 @@
         }
 
         // Start Recording
-        function startRecording() {
+        async function startRecording() {
             try {
+                // Get microphone access
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                
+                // Initialize MediaRecorder
+                state.mediaRecorder = new MediaRecorder(stream, { mimeType: 'audio/webm' });
+                state.audioChunks = [];
                 state.isRecording = true;
-                state.recognition.start();
+
+                // Handle data available
+                state.mediaRecorder.ondataavailable = (event) => {
+                    if (event.data.size > 0) {
+                        state.audioChunks.push(event.data);
+                    }
+                };
+
+                // Handle recording stop
+                state.mediaRecorder.onstop = async () => {
+                    const audioBlob = new Blob(state.audioChunks, { type: 'audio/webm' });
+                    await sendAudioForTranscription(audioBlob);
+                    
+                    // Stop all tracks to release microphone
+                    stream.getTracks().forEach(track => track.stop());
+                };
+
+                // Start recording
+                state.mediaRecorder.start();
                 updateMicButtonState(true);
+                
                 // Clear previous input
                 elements.messageInput.value = '';
                 elements.sendButton.disabled = true;
+                
             } catch (error) {
                 console.error('Error starting recording:', error);
-                showError('Could not start microphone. Please try again.');
+                if (error.name === 'NotAllowedError') {
+                    showError('Microphone permission denied. Please allow microphone access.');
+                } else {
+                    showError('Could not start microphone. Please try again.');
+                }
                 stopRecording();
             }
         }
@@ -950,9 +934,9 @@
         // Stop Recording
         function stopRecording() {
             state.isRecording = false;
-            if (state.recognition) {
+            if (state.mediaRecorder && state.mediaRecorder.state !== 'inactive') {
                 try {
-                    state.recognition.stop();
+                    state.mediaRecorder.stop();
                 } catch (error) {
                     // Already stopped, ignore error
                 }
@@ -960,19 +944,59 @@
             updateMicButtonState(false);
         }
 
+        // Send audio to server for transcription
+        async function sendAudioForTranscription(audioBlob) {
+            try {
+                // Show loading state
+                elements.messageInput.placeholder = 'Transcribing...';
+                
+                // Send to transcribe endpoint
+                const response = await fetch('/api/transcribe', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'audio/webm',
+                    },
+                    body: audioBlob,
+                });
+
+                const data = await response.json();
+
+                if (data.success && data.text) {
+                    // Put transcribed text in input field
+                    elements.messageInput.value = data.text;
+                    elements.sendButton.disabled = false;
+                    
+                    // Auto-send the message
+                    sendMessage();
+                } else {
+                    showError('Transcription failed: ' + (data.error || 'No speech detected'));
+                    elements.messageInput.placeholder = 'Type your message...';
+                }
+            } catch (error) {
+                console.error('Transcription error:', error);
+                showError('Failed to transcribe audio. Please try again.');
+                elements.messageInput.placeholder = 'Type your message...';
+            }
+        }
+
         // Update Mic Button Visual State
         function updateMicButtonState(isRecording) {
+            const inputWrapper = document.querySelector('.input-wrapper');
+            
             if (isRecording) {
                 elements.micButton.classList.add('recording');
                 elements.micButton.innerHTML = '<i class="fas fa-stop"></i>';
                 elements.micButton.title = 'Click to stop';
-                // Add red pulsing border effect via inline style
-                elements.micButton.style.boxShadow = '0 0 0 0 rgba(233, 69, 96, 0.7)';
+                // Add red pulsing border to input wrapper
+                inputWrapper.style.borderColor = '#e94560';
+                inputWrapper.style.animation = 'pulse-border 1.5s infinite';
             } else {
                 elements.micButton.classList.remove('recording');
                 elements.micButton.innerHTML = '<i class="fas fa-microphone"></i>';
                 elements.micButton.title = 'Click to speak';
-                elements.micButton.style.boxShadow = '';
+                // Remove red pulsing border
+                inputWrapper.style.borderColor = '';
+                inputWrapper.style.animation = '';
             }
         }
 
