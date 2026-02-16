@@ -67,9 +67,9 @@ extension/
 ├── popup.html         # Settings popup UI
 ├── popup.js           # Settings popup logic
 ├── icons/             # Extension icons
-│   ├── icon16.svg     # Microphone with sound waves (16x16)
-│   ├── icon48.svg     # Microphone with sound waves (48x48)
-│   └── icon128.svg    # Microphone with sound waves (128x128)
+│   ├── icon16.png     # Microphone with sound waves (16x16)
+│   ├── icon48.png     # Microphone with sound waves (48x48)
+│   └── icon128.png    # Microphone with sound waves (128x128)
 └── README.md          # This file
 ```
 
