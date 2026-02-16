@@ -11,6 +11,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   const voiceSelect = document.getElementById('voiceSelect');
   const testBtn = document.getElementById('testBtn');
   const testLoading = document.getElementById('testLoading');
+  const stopBtn = document.getElementById('stopBtn');
   const statusDot = document.getElementById('statusDot');
   const statusText = document.getElementById('statusText');
   
@@ -99,10 +100,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         testBtn.disabled = false;
         voiceSelect.disabled = false;
         
-        // Fetch voices if not already loaded
-        if (voices.length === 0) {
-          await fetchVoices();
-        }
+        // Always refresh voices from server when popup opens
+        await fetchVoices();
       } else {
         statusDot.className = 'status-dot';
         statusText.textContent = 'Server offline - Start AgentVibes';
@@ -277,6 +276,30 @@ document.addEventListener('DOMContentLoaded', async () => {
   });
   
   testBtn.addEventListener('click', testVoice);
+  
+  // Stop Speaking button
+  stopBtn.addEventListener('click', async () => {
+    try {
+      // Send stop message to all content scripts
+      const tabs = await chrome.tabs.query({
+        url: ['https://chat.openai.com/*', 'https://claude.ai/*', 'https://genspark.ai/*']
+      });
+      
+      tabs.forEach(tab => {
+        chrome.tabs.sendMessage(tab.id, { type: 'STOP_SPEAKING' }).catch(() => {
+          // Tab might not have content script, ignore error
+        });
+      });
+      
+      // Also stop any audio playing in the popup
+      if (currentAudio) {
+        currentAudio.pause();
+        currentAudio = null;
+      }
+    } catch (error) {
+      console.error('Stop speaking error:', error);
+    }
+  });
   
   // ============================================
   // Initialize

@@ -42,6 +42,7 @@ console.log('[AgentVibes Voice] Content script injected on:', window.location.hr
   let settings = { enabled: true, volume: 1.0, voice: null, autoSpeak: true };
   let spokenMessages = new Set(); // Track spoken message hashes
   let currentAudio = null;
+  let stopButton = null;
   let observer = null;
   let isInitialized = false;
   let isPageReady = false;
@@ -306,15 +307,20 @@ console.log('[AgentVibes Voice] Content script injected on:', window.location.hr
         currentAudio = new Audio(fetchResponse.dataUrl);
         currentAudio.volume = settings.volume;
         
+        // Show stop button when audio starts playing
+        showStopButton();
+        
         currentAudio.onended = () => {
           currentAudio = null;
           hideSpeakingNotification();
+          hideStopButton();
         };
         
         currentAudio.onerror = (e) => {
           console.error('[AgentVibes Voice] Audio playback failed:', e);
           currentAudio = null;
           hideSpeakingNotification();
+          hideStopButton();
           showErrorNotification('Audio playback failed');
         };
         
@@ -328,6 +334,95 @@ console.log('[AgentVibes Voice] Content script injected on:', window.location.hr
       showErrorNotification(error.message);
     }
   }
+  
+  // ============================================
+  // Stop/Mute Button
+  // ============================================
+  
+  function createStopButton() {
+    const button = document.createElement('div');
+    button.id = 'agentvibes-stop-btn';
+    button.innerHTML = `
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="white">
+        <rect x="6" y="6" width="12" height="12" rx="2"/>
+      </svg>
+    `;
+    button.style.cssText = `
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      width: 50px;
+      height: 50px;
+      background: #ef4444;
+      border-radius: 50%;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      z-index: 10001;
+      box-shadow: 0 4px 15px rgba(239, 68, 68, 0.4);
+      transition: all 0.2s;
+    `;
+    
+    // Hover effects
+    button.addEventListener('mouseenter', () => {
+      button.style.transform = 'scale(1.1)';
+      button.style.boxShadow = '0 6px 20px rgba(239, 68, 68, 0.6)';
+    });
+    
+    button.addEventListener('mouseleave', () => {
+      button.style.transform = 'scale(1)';
+      button.style.boxShadow = '0 4px 15px rgba(239, 68, 68, 0.4)';
+    });
+    
+    // Click handler
+    button.addEventListener('click', () => {
+      stopAudioPlayback();
+    });
+    
+    document.body.appendChild(button);
+    return button;
+  }
+  
+  function showStopButton() {
+    if (!stopButton) {
+      stopButton = createStopButton();
+    }
+    stopButton.style.display = 'flex';
+    console.log('[AgentVibes Voice] Stop button shown');
+  }
+  
+  function hideStopButton() {
+    if (stopButton) {
+      stopButton.style.display = 'none';
+      console.log('[AgentVibes Voice] Stop button hidden');
+    }
+  }
+  
+  function stopAudioPlayback() {
+    if (currentAudio) {
+      console.log('[AgentVibes Voice] Stopping audio playback');
+      currentAudio.pause();
+      currentAudio = null;
+      hideSpeakingNotification();
+      hideStopButton();
+    }
+  }
+  
+  // Keyboard shortcut: Escape key stops audio
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+      stopAudioPlayback();
+    }
+  });
+  
+  // Listen for stop message from popup
+  chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+    if (request.type === 'STOP_SPEAKING') {
+      stopAudioPlayback();
+      sendResponse({ success: true });
+    }
+  });
   
   // ============================================
   // Notification UI
