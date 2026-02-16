@@ -57,52 +57,89 @@ console.log('[AgentVibes Voice] Content script injected on:', window.location.hr
   const POLLING_INTERVAL = 300; // 300ms for streaming text polling
 
   // ============================================
-  // Streaming TTS - Sentence Queue Management
+  // Streaming TTS - Chunk Queue Management
   // ============================================
 
-  class SentenceQueue {
+  const MIN_CHUNK_LENGTH = 150; // Minimum characters before sending to TTS
+  const MAX_CHUNK_SENTENCES = 3; // Maximum sentences per chunk
+
+  class ChunkQueue {
     constructor() {
       this.queue = [];
       this.isPlaying = false;
       this.currentAudio = null;
-      this.nextAudioData = null; // Preloaded audio data for next sentence
-      this.nextSentence = null; // The sentence that was preloaded
+      this.nextAudioData = null; // Preloaded audio data for next chunk
+      this.nextChunk = null; // The chunk that was preloaded
+      this.pendingBuffer = ''; // Buffer for accumulating sentences
+      this.pendingSentences = 0; // Count of complete sentences in buffer
     }
 
-    add(sentence) {
-      const sentenceHash = hashMessage(sentence);
+    // Add text to buffer. Returns true if a chunk was created and queued.
+    addText(text, isFinal = false) {
+      if (!text || text.length < 5) return false;
 
-      // Skip if already spoken
-      if (spokenSentences.has(sentenceHash)) {
-        return false;
-      }
+      // Add to pending buffer
+      this.pendingBuffer += (this.pendingBuffer ? ' ' : '') + text;
+      this.pendingSentences++;
 
-      // Mark as spoken immediately to prevent duplicates
-      spokenSentences.add(sentenceHash);
-      this.queue.push(sentence);
-      console.log('[AgentVibes Voice] Sentence added to queue:', sentence.substring(0, 40) + '...');
+      const bufferLength = this.pendingBuffer.length;
+      const shouldCreateChunk = isFinal ||
+                                bufferLength >= MIN_CHUNK_LENGTH ||
+                                this.pendingSentences >= MAX_CHUNK_SENTENCES;
 
-      // Start playing if not already
-      if (!this.isPlaying) {
-        this.playNext();
-      } else {
-        // If already playing, preload the next sentence if this is the only item
-        if (this.queue.length === 1) {
-          this.preloadNext();
+      if (shouldCreateChunk && bufferLength >= 10) {
+        // Create a chunk from the buffer
+        const chunk = this.pendingBuffer.trim();
+        const chunkHash = hashMessage(chunk);
+
+        // Skip if already spoken
+        if (spokenSentences.has(chunkHash)) {
+          this.resetBuffer();
+          return false;
         }
+
+        // Mark as spoken immediately to prevent duplicates
+        spokenSentences.add(chunkHash);
+        this.queue.push(chunk);
+        console.log('[AgentVibes Voice] Chunk queued (' + bufferLength + ' chars, ' + this.pendingSentences + ' sentences):', chunk.substring(0, 60) + (chunk.length > 60 ? '...' : ''));
+
+        // Reset buffer
+        this.resetBuffer();
+
+        // Start playing if not already
+        if (!this.isPlaying) {
+          this.playNext();
+        } else {
+          // If already playing, preload the next chunk if this is the only item
+          if (this.queue.length === 1) {
+            this.preloadNext();
+          }
+        }
+
+        return true;
       }
 
-      return true;
+      return false;
+    }
+
+    resetBuffer() {
+      this.pendingBuffer = '';
+      this.pendingSentences = 0;
+    }
+
+    // Force flush any remaining buffer as a final chunk
+    flushBuffer() {
+      if (this.pendingBuffer && this.pendingBuffer.length >= 5) {
+        this.addText('', true); // Force final chunk
+      }
     }
 
     async playNext() {
       if (this.queue.length === 0) {
         // Check if we have a preloaded next audio that wasn't used
-        if (this.nextAudioData && this.nextSentence) {
-          // The preloaded audio is for a sentence that was already processed
-          // Just clear it and finish
+        if (this.nextAudioData && this.nextChunk) {
           this.nextAudioData = null;
-          this.nextSentence = null;
+          this.nextChunk = null;
         }
         this.isPlaying = false;
         hideSpeakingNotification();
@@ -111,43 +148,42 @@ console.log('[AgentVibes Voice] Content script injected on:', window.location.hr
       }
 
       this.isPlaying = true;
-      const sentence = this.queue.shift();
+      const chunk = this.queue.shift();
 
       try {
-        // Preload the NEXT sentence before playing current one
-        // This ensures the next audio is ready when current finishes
+        // Preload the NEXT chunk before playing current one
         if (this.queue.length > 0) {
           this.preloadNext();
         }
 
-        await this.playSentence(sentence);
+        await this.playChunk(chunk);
 
-        // Continue with next sentence (next audio should already be preloaded)
+        // Continue with next chunk (next audio should already be preloaded)
         this.playNext();
       } catch (error) {
-        console.error('[AgentVibes Voice] Error playing sentence:', error);
+        console.error('[AgentVibes Voice] Error playing chunk:', error);
         this.nextAudioData = null;
-        this.nextSentence = null;
+        this.nextChunk = null;
         // Continue with next even if one fails
         this.playNext();
       }
     }
 
     async preloadNext() {
-      // Preload audio for the next sentence in queue
+      // Preload audio for the next chunk in queue
       if (this.queue.length === 0 || this.nextAudioData) return;
 
-      const nextSentence = this.queue[0];
-      if (nextSentence === this.nextSentence) return; // Already preloading this one
+      const nextChunk = this.queue[0];
+      if (nextChunk === this.nextChunk) return; // Already preloading this one
 
-      this.nextSentence = nextSentence;
-      console.log('[AgentVibes Voice] Preloading audio for:', nextSentence.substring(0, 40) + '...');
+      this.nextChunk = nextChunk;
+      console.log('[AgentVibes Voice] Preloading audio for chunk:', nextChunk.substring(0, 60) + '...');
 
       try {
         const response = await chrome.runtime.sendMessage({
           type: 'TTS_REQUEST',
           data: {
-            text: nextSentence,
+            text: nextChunk,
             voice: settings.voice,
             speed: 1.0,
             pitch: 1.0
@@ -162,7 +198,7 @@ console.log('[AgentVibes Voice] Content script injected on:', window.location.hr
 
           if (fetchResponse.success && fetchResponse.dataUrl) {
             this.nextAudioData = fetchResponse.dataUrl;
-            console.log('[AgentVibes Voice] Audio preloaded and ready for:', nextSentence.substring(0, 40) + '...');
+            console.log('[AgentVibes Voice] Audio preloaded for chunk:', nextChunk.substring(0, 40) + '...');
           }
         }
       } catch (error) {
@@ -171,7 +207,7 @@ console.log('[AgentVibes Voice] Content script injected on:', window.location.hr
       }
     }
 
-    async playSentence(sentence) {
+    async playChunk(chunk) {
       return new Promise(async (resolve, reject) => {
         try {
           showSpeakingNotification();
@@ -179,21 +215,21 @@ console.log('[AgentVibes Voice] Content script injected on:', window.location.hr
 
           let audio;
 
-          // Check if we have preloaded audio for this exact sentence
-          if (this.nextSentence === sentence && this.nextAudioData) {
-            console.log('[AgentVibes Voice] Using preloaded audio for:', sentence.substring(0, 40) + '...');
+          // Check if we have preloaded audio for this exact chunk
+          if (this.nextChunk === chunk && this.nextAudioData) {
+            console.log('[AgentVibes Voice] Using preloaded audio for chunk:', chunk.substring(0, 60) + '...');
             audio = new Audio(this.nextAudioData);
             audio.volume = settings.volume;
             // Clear the preloaded data since we're using it
             this.nextAudioData = null;
-            this.nextSentence = null;
+            this.nextChunk = null;
           } else {
             // Fetch audio normally
-            console.log('[AgentVibes Voice] Fetching audio for:', sentence.substring(0, 40) + '...');
+            console.log('[AgentVibes Voice] Fetching audio for chunk:', chunk.substring(0, 60) + '...');
             const response = await chrome.runtime.sendMessage({
               type: 'TTS_REQUEST',
               data: {
-                text: sentence,
+                text: chunk,
                 voice: settings.voice,
                 speed: 1.0,
                 pitch: 1.0
@@ -220,7 +256,6 @@ console.log('[AgentVibes Voice] Content script injected on:', window.location.hr
           this.currentAudio = audio;
           currentAudio = audio;
 
-          // Use a small crossfade buffer for seamless transition
           // The audio is already preloaded, so we can play immediately
           audio.onended = () => {
             this.currentAudio = null;
@@ -245,7 +280,7 @@ console.log('[AgentVibes Voice] Content script injected on:', window.location.hr
           }
 
         } catch (error) {
-          console.error('[AgentVibes Voice] TTS error for sentence:', error);
+          console.error('[AgentVibes Voice] TTS error for chunk:', error);
           reject(error);
         }
       });
@@ -253,35 +288,38 @@ console.log('[AgentVibes Voice] Content script injected on:', window.location.hr
 
     clear() {
       this.queue = [];
+      this.resetBuffer();
       if (this.currentAudio) {
         this.currentAudio.pause();
         this.currentAudio = null;
       }
       this.nextAudioData = null;
-      this.nextSentence = null;
+      this.nextChunk = null;
       this.isPlaying = false;
     }
 
     isActive() {
-      return this.isPlaying || this.queue.length > 0;
+      return this.isPlaying || this.queue.length > 0 || this.pendingBuffer.length > 0;
     }
 
     getDebugState() {
       return {
         queueLength: this.queue.length,
         isPlaying: this.isPlaying,
-        queue: this.queue.slice(0, 5), // First 5 items
+        bufferLength: this.pendingBuffer.length,
+        pendingSentences: this.pendingSentences,
+        queue: this.queue.slice(0, 3), // First 3 items
         hasPreloadedAudio: !!this.nextAudioData,
-        preloadedSentence: this.nextSentence ? this.nextSentence.substring(0, 50) + '...' : null
+        preloadedChunk: this.nextChunk ? this.nextChunk.substring(0, 50) + '...' : null
       };
     }
   }
 
-  // Global sentence queue for streaming TTS
-  const sentenceQueue = new SentenceQueue();
+  // Global chunk queue for streaming TTS
+  const chunkQueue = new ChunkQueue();
 
   // Track streaming messages and their polling state
-  const streamingMessages = new Map(); // messageId -> { element, lastText, sentencesSent, intervalId, isComplete }
+  const streamingMessages = new Map(); // messageId -> { element, lastText, chunkQueue, intervalId, isComplete }
 
   // ============================================
   // Utility Functions
@@ -440,12 +478,9 @@ console.log('[AgentVibes Voice] Content script injected on:', window.location.hr
     const currentText = extractCleanText(textElement, platform);
     addSpeakerIconToMessage(messageElement, currentText, platform);
 
-    // Auto-speak first chunk if enabled
+    // Auto-speak first chunk if enabled - add to buffer for batching
     if (settings.autoSpeak && settings.enabled && currentText.length >= MIN_TEXT_LENGTH) {
-      const sentences = extractSentencesFromText(currentText, streamingState.sentencesSent);
-      for (const sentence of sentences) {
-        sentenceQueue.add(sentence);
-      }
+      chunkQueue.addText(currentText, false);
     }
   }
 
@@ -453,7 +488,7 @@ console.log('[AgentVibes Voice] Content script injected on:', window.location.hr
     const state = streamingMessages.get(messageId);
     if (!state) return;
 
-    const { textElement, lastText, sentencesSent, element, platform, lastProcessedLength = 0 } = state;
+    const { textElement, lastText, element, platform, lastProcessedLength = 0 } = state;
     const currentText = extractCleanText(textElement, platform);
 
     // Check if text has changed
@@ -466,20 +501,9 @@ console.log('[AgentVibes Voice] Content script injected on:', window.location.hr
         state.isComplete = true;
         clearInterval(state.intervalId);
 
-        // Get only the NEW text since last processing
-        const newText = currentText.substring(lastProcessedLength).trim();
-
-        if (newText.length >= 10) {
-          // Check if this looks like a complete sentence or final fragment
-          const isComplete = /[.!?]\s*$/.test(newText);
-
-          if (!isComplete) {
-            // It's an incomplete final fragment - speak it once
-            console.log('[AgentVibes Voice] Speaking final incomplete fragment:', newText.substring(0, 50) + '...');
-            sentenceQueue.add(newText);
-          }
-          // If it's a complete sentence, it was already processed in the growing phase
-        }
+        // Flush any remaining buffer as final chunk
+        console.log('[AgentVibes Voice] Streaming ended, flushing final chunk');
+        chunkQueue.flushBuffer();
 
         // Mark message as fully processed
         element.setAttribute('data-agentvibes-streaming', 'complete');
@@ -495,39 +519,27 @@ console.log('[AgentVibes Voice] Content script injected on:', window.location.hr
       return;
     }
 
-    // Text has grown - extract ONLY new sentences from the NEW text portion
+    // Text has grown - add new text to the chunk buffer
     if (currentText.length > lastText.length) {
       console.log('[AgentVibes Voice] Text grew from', lastText.length, 'to', currentText.length, 'chars');
 
       // Get only the NEW text since last processing
       const newTextPortion = currentText.substring(state.lastProcessedLength || 0);
 
-      if (newTextPortion.length >= 10) {
-        // Build complete text for sentence extraction (so we get proper sentence boundaries)
-        // But only extract from the new portion
-        const newSentences = extractSentencesFromText(currentText, sentencesSent);
+      if (newTextPortion.length >= 5) {
+        // Add new text to chunk buffer for batching
+        // The chunkQueue will accumulate until it hits MIN_CHUNK_LENGTH or MAX_CHUNK_SENTENCES
+        const chunkCreated = chunkQueue.addText(newTextPortion, false);
 
-        // Filter to only include sentences that contain content from the new text
-        const actuallyNewSentences = newSentences.filter(sentence => {
-          // Check if this sentence contains any of the new text
-          return newTextPortion.includes(sentence) ||
-                 sentence.includes(newTextPortion.substring(0, Math.min(50, newTextPortion.length)));
-        });
-
-        // Queue new sentences for TTS
-        for (const sentence of actuallyNewSentences) {
-          sentenceQueue.add(sentence);
-        }
-
-        if (actuallyNewSentences.length > 0) {
-          console.log('[AgentVibes Voice] Queued', actuallyNewSentences.length, 'new sentences');
+        if (chunkCreated) {
+          console.log('[AgentVibes Voice] New chunk queued from text growth');
         }
       }
 
       // Update tracking state
       state.lastText = currentText;
       // Update lastProcessedLength to track how much we've actually processed
-      // We process up to the last complete sentence end
+      // We process up to the last complete sentence end to avoid partial sentences
       const lastSentenceEnd = Math.max(
         currentText.lastIndexOf('.'),
         currentText.lastIndexOf('!'),
@@ -552,8 +564,8 @@ console.log('[AgentVibes Voice] Content script injected on:', window.location.hr
       // This prevents them from being re-processed
     }
 
-    // Clear the sentence queue and stop current audio
-    sentenceQueue.clear();
+    // Clear the chunk queue and stop current audio
+    chunkQueue.clear();
 
     // Reset the spoken sentences tracking to prevent accumulation
     spokenSentences.clear();
@@ -857,8 +869,8 @@ console.log('[AgentVibes Voice] Content script injected on:', window.location.hr
       currentAudio = null;
     }
 
-    // Clear the sentence queue
-    sentenceQueue.clear();
+    // Clear the chunk queue
+    chunkQueue.clear();
 
     // Stop all streaming processing
     stopAllStreaming();
@@ -866,8 +878,8 @@ console.log('[AgentVibes Voice] Content script injected on:', window.location.hr
     hideSpeakingNotification();
 
     // Only hide stop button if no more audio is queued or playing
-    // Keep it visible while the sentence queue has items or audio is playing
-    if (!sentenceQueue.isActive()) {
+    // Keep it visible while the chunk queue has items or audio is playing
+    if (!chunkQueue.isActive()) {
       hideStopButton();
     }
   }
