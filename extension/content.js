@@ -883,6 +883,11 @@ console.log('[AgentVibes Voice] Content script injected on:', window.location.hr
     const messageId = element.dataset.messageId || hashMessage(element.outerHTML.substring(0, 200));
     element.dataset.messageId = messageId;
 
+    // CRITICAL: Skip if this message was pre-marked as spoken during initial catalog
+    if (element.getAttribute('data-agentvibes-spoken') === 'true') {
+      return;
+    }
+
     // Check if this message is already fully processed
     if (element.dataset.agentvibesStreamingComplete === 'true') {
       return;
@@ -947,6 +952,11 @@ console.log('[AgentVibes Voice] Content script injected on:', window.location.hr
     // Skip during initial page load grace period
     if (!isPageReady) {
       console.log('[AgentVibes] Page not ready yet, skipping generic message');
+      return;
+    }
+
+    // CRITICAL: Skip if this message was pre-marked as spoken during initial catalog
+    if (element.getAttribute('data-agentvibes-spoken') === 'true') {
       return;
     }
 
@@ -1073,13 +1083,20 @@ console.log('[AgentVibes Voice] Content script injected on:', window.location.hr
     }, 500);
   }
 
-  function detectAndProcessMessages(platform) {
+  function detectAndProcessMessages(platform, options = {}) {
     const config = PLATFORMS[platform];
+    const { markOnly = false } = options;
 
     if (config && config.messageSelector) {
       const messages = document.querySelectorAll(config.messageSelector);
-      console.log('[AgentVibes Voice] Scanning for messages, found:', messages.length);
-      messages.forEach(msg => processMessageElement(msg, platform));
+      console.log(`[AgentVibes Voice] Scanning for messages (markOnly=${markOnly}), found:`, messages.length);
+      messages.forEach(msg => {
+        if (markOnly) {
+          markMessageAsSpoken(msg, platform);
+        } else {
+          processMessageElement(msg, platform);
+        }
+      });
     } else {
       // Generic: look for chat message containers
       const genericSelectors = [
@@ -1094,12 +1111,69 @@ console.log('[AgentVibes Voice] Content script injected on:', window.location.hr
       genericSelectors.forEach(selector => {
         try {
           const messages = document.querySelectorAll(selector);
-          messages.forEach(msg => processMessageElement(msg, 'GENERIC'));
+          messages.forEach(msg => {
+            if (markOnly) {
+              markMessageAsSpoken(msg, 'GENERIC');
+            } else {
+              processMessageElement(msg, 'GENERIC');
+            }
+          });
         } catch (e) {
           // Invalid selector, skip
         }
       });
     }
+  }
+
+  // ============================================
+  // Mark Existing Messages as Spoken (No TTS)
+  // ============================================
+
+  function markMessageAsSpoken(element, platform) {
+    const config = PLATFORMS[platform];
+
+    // Get text content
+    let textElement = element;
+    if (config && config.textSelector) {
+      textElement = element.querySelector(config.textSelector) || element;
+    }
+
+    const text = extractCleanText(textElement, platform);
+
+    // Only mark substantial messages (more than 50 chars)
+    if (text.length < MIN_TEXT_LENGTH) return;
+
+    // Generate message ID
+    const messageId = element.dataset.messageId || hashMessage(element.outerHTML.substring(0, 200));
+    element.dataset.messageId = messageId;
+
+    // Mark as spoken using data attribute
+    element.setAttribute('data-agentvibes-spoken', 'true');
+
+    // Also add to spokenMessages Set for extra safety
+    const textHash = hashMessage(text);
+    spokenMessages.add(textHash);
+
+    // Mark as processed to prevent re-processing
+    element.dataset.agentvibesProcessed = textHash;
+
+    console.log('[AgentVibes Voice] Pre-marked existing message as spoken:', text.substring(0, 50));
+  }
+
+  function markAllExistingMessagesAsSpoken(platform) {
+    console.log('[AgentVibes Voice] Marking all existing messages as spoken (initial catalog)...');
+
+    // Temporarily set isPageReady to true so detection works
+    const wasPageReady = isPageReady;
+    isPageReady = true;
+
+    // Scan and mark all existing messages without speaking them
+    detectAndProcessMessages(platform, { markOnly: true });
+
+    // Restore original state
+    isPageReady = wasPageReady;
+
+    console.log('[AgentVibes Voice] Finished cataloging existing messages. Will only speak NEW messages.');
   }
 
   // ============================================
@@ -1167,12 +1241,21 @@ console.log('[AgentVibes Voice] Content script injected on:', window.location.hr
 
         // Set page as ready after initial grace period
         setTimeout(() => {
-          isPageReady = true;
-          console.log('[AgentVibes Voice] Grace period ended, observer active');
-          console.log('[AgentVibes Voice] Page ready - processing messages enabled');
+          console.log('[AgentVibes Voice] Grace period ended - cataloging existing messages...');
 
-          // Do initial scan now that page is ready
-          detectAndProcessMessages(currentPlatform);
+          // CRITICAL: First, mark ALL existing messages as "already spoken"
+          // This ensures old messages won't be spoken after page refresh
+          markAllExistingMessagesAsSpoken(currentPlatform);
+
+          // Now enable message processing for NEW messages only
+          isPageReady = true;
+          console.log('[AgentVibes Voice] Page ready - will only speak NEW messages');
+
+          // Do a final scan to catch any messages that appeared during the grace period
+          // but weren't present at the start of this timeout
+          setTimeout(() => {
+            detectAndProcessMessages(currentPlatform);
+          }, 500);
         }, INITIAL_LOAD_GRACE);
       }, OBSERVER_DELAY);
     });
