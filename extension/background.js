@@ -24,6 +24,11 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     playAudio(request.audioUrl, sendResponse);
     return true;
   }
+  
+  if (request.type === 'FETCH_AUDIO') {
+    fetchAudioAsDataUrl(request.url, sendResponse);
+    return true;
+  }
 });
 
 // Handle TTS request to localhost:3000/api/tts
@@ -133,6 +138,51 @@ async function fetchVoices(sendResponse) {
       error: error.message
     });
   }
+}
+
+// Fetch audio from HTTP URL and return as base64 data URL (bypasses Mixed Content)
+async function fetchAudioAsDataUrl(audioUrl, sendResponse) {
+  try {
+    console.log('[AgentVibes Voice] Fetching audio from:', audioUrl);
+    
+    const response = await fetch(audioUrl);
+    if (!response.ok) {
+      throw new Error(`Failed to fetch audio: ${response.status} ${response.statusText}`);
+    }
+    
+    // Get audio as ArrayBuffer
+    const arrayBuffer = await response.arrayBuffer();
+    
+    // Convert to base64
+    const base64 = arrayBufferToBase64(arrayBuffer);
+    
+    // Determine MIME type (default to audio/wav if not specified)
+    const contentType = response.headers.get('content-type') || 'audio/wav';
+    const dataUrl = `data:${contentType};base64,${base64}`;
+    
+    console.log('[AgentVibes Voice] Audio converted to data URL, length:', dataUrl.length);
+    
+    sendResponse({
+      success: true,
+      dataUrl: dataUrl
+    });
+  } catch (error) {
+    console.error('[AgentVibes Voice] Failed to fetch audio:', error);
+    sendResponse({
+      success: false,
+      error: error.message || 'Failed to fetch audio'
+    });
+  }
+}
+
+// Helper function to convert ArrayBuffer to base64 string
+function arrayBufferToBase64(buffer) {
+  const bytes = new Uint8Array(buffer);
+  let binary = '';
+  for (let i = 0; i < bytes.byteLength; i++) {
+    binary += String.fromCharCode(bytes[i]);
+  }
+  return btoa(binary);
 }
 
 // Play audio (background can play audio without user interaction restrictions)

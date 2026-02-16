@@ -288,8 +288,22 @@ console.log('[AgentVibes Voice] Content script injected on:', window.location.hr
       });
       
       if (response.success && response.audioUrl) {
-        // Play audio
-        currentAudio = new Audio(response.audioUrl);
+        // Fetch audio through background script to bypass Mixed Content restriction
+        console.log('[AgentVibes Voice] Fetching audio via background script to avoid Mixed Content');
+        
+        const fetchResponse = await chrome.runtime.sendMessage({
+          type: 'FETCH_AUDIO',
+          url: response.audioUrl
+        });
+        
+        if (!fetchResponse.success || !fetchResponse.dataUrl) {
+          throw new Error(fetchResponse.error || 'Failed to fetch audio');
+        }
+        
+        console.log('[AgentVibes Voice] Audio loaded as data URL, playing...');
+        
+        // Play audio using the base64 data URL (no Mixed Content issue)
+        currentAudio = new Audio(fetchResponse.dataUrl);
         currentAudio.volume = settings.volume;
         
         currentAudio.onended = () => {
@@ -297,8 +311,8 @@ console.log('[AgentVibes Voice] Content script injected on:', window.location.hr
           hideSpeakingNotification();
         };
         
-        currentAudio.onerror = () => {
-          console.error('[AgentVibes Voice] Audio playback failed');
+        currentAudio.onerror = (e) => {
+          console.error('[AgentVibes Voice] Audio playback failed:', e);
           currentAudio = null;
           hideSpeakingNotification();
           showErrorNotification('Audio playback failed');
