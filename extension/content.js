@@ -312,6 +312,10 @@ console.log('[AgentVibes Voice] Content script injected on:', window.location.hr
       return;
     }
 
+    // Mark message as being handled by streaming TTS to prevent fallback speakText()
+    messageElement.setAttribute('data-agentvibes-streaming', 'true');
+    console.log('[AgentVibes Voice] Marked message for streaming TTS:', messageId);
+
     const config = PLATFORMS[platform];
     let textElement = messageElement;
     if (config && config.textSelector) {
@@ -381,7 +385,8 @@ console.log('[AgentVibes Voice] Content script injected on:', window.location.hr
           sentenceQueue.add(sentence);
         }
 
-        // Mark message as fully processed
+        // Mark message as fully processed and remove streaming attribute
+        element.setAttribute('data-agentvibes-streaming', 'complete');
         element.dataset.agentvibesStreamingComplete = 'true';
         console.log('[AgentVibes Voice] Streaming completed for message:', messageId);
 
@@ -411,16 +416,33 @@ console.log('[AgentVibes Voice] Content script injected on:', window.location.hr
   }
 
   function stopAllStreaming() {
+    console.log('[AgentVibes Voice] Stopping all streaming TTS...');
+
     // Stop all polling intervals
     for (const [messageId, state] of streamingMessages) {
       if (state.intervalId) {
         clearInterval(state.intervalId);
+        state.intervalId = null;
+      }
+      // Keep the streaming messages in the map but mark them as stopped
+      // This prevents them from being re-processed
+    }
+
+    // Clear the sentence queue and stop current audio
+    sentenceQueue.clear();
+
+    // Reset the spoken sentences tracking to prevent accumulation
+    spokenSentences.clear();
+
+    // Mark all streaming messages as stopped (but not complete)
+    // This prevents the fallback from picking them up
+    for (const [messageId, state] of streamingMessages) {
+      if (state.element) {
+        state.element.setAttribute('data-agentvibes-streaming', 'stopped');
       }
     }
-    streamingMessages.clear();
 
-    // Clear the sentence queue
-    sentenceQueue.clear();
+    console.log('[AgentVibes Voice] All streaming TTS stopped, queue cleared');
   }
 
   // ============================================
@@ -553,6 +575,17 @@ console.log('[AgentVibes Voice] Content script injected on:', window.location.hr
     if (!options.isReplay && spokenMessages.has(textHash)) {
       console.log('[AgentVibes Voice] Skipping already spoken message');
       return;
+    }
+
+    // CRITICAL: Check if this text is from a message being handled by streaming TTS
+    // We look for any message element that contains this text and is marked as streaming
+    const messageElements = document.querySelectorAll('[data-agentvibes-streaming="true"]');
+    for (const msgEl of messageElements) {
+      const msgText = extractCleanText(msgEl, currentPlatform);
+      if (msgText && (msgText.includes(text) || text.includes(msgText))) {
+        console.log('[AgentVibes Voice] Skipping speakText - message is being handled by streaming TTS');
+        return;
+      }
     }
 
     // Update last speak time and mark as spoken
@@ -707,7 +740,12 @@ console.log('[AgentVibes Voice] Content script injected on:', window.location.hr
     stopAllStreaming();
 
     hideSpeakingNotification();
-    hideStopButton();
+
+    // Only hide stop button if no more audio is queued or playing
+    // Keep it visible while the sentence queue has items or audio is playing
+    if (!sentenceQueue.isActive()) {
+      hideStopButton();
+    }
   }
 
   // Keyboard shortcut: Escape key stops audio
@@ -871,8 +909,9 @@ console.log('[AgentVibes Voice] Content script injected on:', window.location.hr
     }
 
     // If streaming or text is still growing, use streaming processing
-    if (isStreaming || !element.dataset.agentvibesStreamingStarted) {
+    if (isStreaming || !element.getAttribute('data-agentvibes-streaming')) {
       // Mark that we've started streaming processing
+      element.setAttribute('data-agentvibes-streaming', 'true');
       element.dataset.agentvibesStreamingStarted = 'true';
 
       // Start streaming processing (polls text as it grows)
@@ -880,8 +919,14 @@ console.log('[AgentVibes Voice] Content script injected on:', window.location.hr
 
       // Also mark as processed with current hash
       element.dataset.agentvibesProcessed = textHash;
+    } else if (element.getAttribute('data-agentvibes-streaming') === 'complete' ||
+               element.getAttribute('data-agentvibes-streaming') === 'stopped') {
+      // Streaming is complete or was stopped - skip this message entirely
+      // The streaming handler already processed or is handling it
+      console.log('[AgentVibes Voice] Skipping non-streaming processing - message handled by streaming path');
+      return;
     } else {
-      // Non-streaming: process immediately as before
+      // Non-streaming: process immediately as before (only for messages NOT marked as streaming)
       console.log('[AgentVibes Voice] New AI message found:', text.substring(0, 50));
 
       // Mark as processed
@@ -902,6 +947,13 @@ console.log('[AgentVibes Voice] Content script injected on:', window.location.hr
     // Skip during initial page load grace period
     if (!isPageReady) {
       console.log('[AgentVibes] Page not ready yet, skipping generic message');
+      return;
+    }
+
+    // CRITICAL: Skip if this message is being handled by streaming TTS
+    const streamingAttr = element.getAttribute('data-agentvibes-streaming');
+    if (streamingAttr === 'true' || streamingAttr === 'complete' || streamingAttr === 'stopped') {
+      console.log('[AgentVibes Voice] Skipping generic processing - message handled by streaming');
       return;
     }
 
