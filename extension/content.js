@@ -1551,9 +1551,7 @@ console.log('[AgentVibes Voice] Content script injected on:', window.location.hr
       }
     }
     if (request.type === 'GET_BROWSER_VOICES') {
-      // Return available browser voices (async to handle initial loading)
       getBrowserVoicesAsync().then(voices => {
-        // Update the cache and sort
         browserVoices = voices;
         browserVoices.sort((a, b) => {
           const aIsNeural = a.name.toLowerCase().includes('neural') ||
@@ -1573,27 +1571,26 @@ console.log('[AgentVibes Voice] Content script injected on:', window.location.hr
           return 0;
         });
 
-        if (sendResponse) {
-          sendResponse({
-            success: true,
-            voices: browserVoices.map(v => ({
-              name: v.name,
-              lang: v.lang,
-              default: v.default
-            }))
-          });
-        }
+        console.log('[AgentVibes Voice] Sending', browserVoices.length, 'voices to popup');
+
+        sendResponse({
+          success: true,
+          voices: browserVoices.map(v => ({
+            name: v.name,
+            lang: v.lang,
+            default: v.default,
+            localService: v.localService
+          }))
+        });
       }).catch(err => {
         console.error('[AgentVibes Voice] Error getting browser voices:', err);
-        if (sendResponse) {
-          sendResponse({
-            success: false,
-            voices: [],
-            error: err.message
-          });
-        }
+        sendResponse({
+          success: false,
+          voices: [],
+          error: err.message
+        });
       });
-      return true;
+      return true; // Keep message channel open for async response
     }
 
     if (request.type === 'TEST_BROWSER_TTS') {

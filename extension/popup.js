@@ -531,7 +531,29 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     refreshVoicesBtn.classList.add('spinning');
     voices = [];  // Clear cache
-    await fetchVoices();
+
+    // In Fast Mode, retry voice fetch to give page-context script time to respond
+    if (settings.fastMode) {
+      // First attempt
+      await fetchVoices();
+
+      // If no voices loaded, retry after delay (page-context script may need time)
+      if (voices.length === 0) {
+        console.log('[AgentVibes Voice] No voices yet, retrying in 500ms...');
+        await new Promise(resolve => setTimeout(resolve, 500));
+        await fetchVoices();
+      }
+
+      // Final retry after 1 second if still no voices
+      if (voices.length === 0) {
+        console.log('[AgentVibes Voice] Still no voices, final retry in 1s...');
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        await fetchVoices();
+      }
+    } else {
+      await fetchVoices();
+    }
+
     setTimeout(() => refreshVoicesBtn.classList.remove('spinning'), 500);
   });
 
