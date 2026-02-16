@@ -69,6 +69,161 @@ console.log('[AgentVibes Voice] Content script injected on:', window.location.hr
   const spokenSentences = new Set();
 
   // ============================================
+  // Contraction Expansion for TTS
+  // ============================================
+
+  /**
+   * Contraction to expansion mapping for TTS preprocessing.
+   * SAPI and browser TTS read contractions awkwardly, so we expand them.
+   * Covers lowercase, Title Case, and UPPERCASE variants.
+   */
+  const CONTRACTION_MAP = {
+    // "have" contractions
+    "you've": "you have",
+    "You've": "You have",
+    "YOU'VE": "YOU HAVE",
+    "i've": "I have",
+    "I've": "I have",
+    "I'VE": "I HAVE",
+    "we've": "we have",
+    "We've": "We have",
+    "WE'VE": "WE HAVE",
+    "they've": "they have",
+    "They've": "They have",
+    "THEY'VE": "THEY HAVE",
+    // "not" contractions
+    "don't": "do not",
+    "Don't": "Do not",
+    "DON'T": "DO NOT",
+    "doesn't": "does not",
+    "Doesn't": "Does not",
+    "DOESN'T": "DOES NOT",
+    "didn't": "did not",
+    "Didn't": "Did not",
+    "DIDN'T": "DID NOT",
+    "won't": "will not",
+    "Won't": "Will not",
+    "WON'T": "WILL NOT",
+    "wouldn't": "would not",
+    "Wouldn't": "Would not",
+    "WOULDN'T": "WOULD NOT",
+    "couldn't": "could not",
+    "Couldn't": "Could not",
+    "COULDN'T": "COULD NOT",
+    "shouldn't": "should not",
+    "Shouldn't": "Should not",
+    "SHOULDN'T": "SHOULD NOT",
+    "can't": "cannot",
+    "Can't": "Cannot",
+    "CAN'T": "CANNOT",
+    "isn't": "is not",
+    "Isn't": "Is not",
+    "ISN'T": "IS NOT",
+    "aren't": "are not",
+    "Aren't": "Are not",
+    "AREN'T": "ARE NOT",
+    "wasn't": "was not",
+    "Wasn't": "Was not",
+    "WASN'T": "WAS NOT",
+    "weren't": "were not",
+    "Weren't": "Were not",
+    "WEREN'T": "WERE NOT",
+    "haven't": "have not",
+    "Haven't": "Have not",
+    "HAVEN'T": "HAVE NOT",
+    "hasn't": "has not",
+    "Hasn't": "Has not",
+    "HASN'T": "HAS NOT",
+    "hadn't": "had not",
+    "Hadn't": "Had not",
+    "HADN'T": "HAD NOT",
+    // "is" contractions
+    "i'm": "I am",
+    "I'm": "I am",
+    "I'M": "I AM",
+    "you're": "you are",
+    "You're": "You are",
+    "YOU'RE": "YOU ARE",
+    "we're": "we are",
+    "We're": "We are",
+    "WE'RE": "WE ARE",
+    "they're": "they are",
+    "They're": "They are",
+    "THEY'RE": "THEY ARE",
+    "he's": "he is",
+    "He's": "He is",
+    "HE'S": "HE IS",
+    "she's": "she is",
+    "She's": "She is",
+    "SHE'S": "SHE IS",
+    "it's": "it is",
+    "It's": "It is",
+    "IT'S": "IT IS",
+    "that's": "that is",
+    "That's": "That is",
+    "THAT'S": "THAT IS",
+    "there's": "there is",
+    "There's": "There is",
+    "THERE'S": "THERE IS",
+    // "will" contractions
+    "i'll": "I will",
+    "I'll": "I will",
+    "I'LL": "I WILL",
+    "you'll": "you will",
+    "You'll": "You will",
+    "YOU'LL": "YOU WILL",
+    "we'll": "we will",
+    "We'll": "We will",
+    "WE'LL": "WE WILL",
+    "they'll": "they will",
+    "They'll": "They will",
+    "THEY'LL": "THEY WILL",
+    // "would" contractions
+    "i'd": "I would",
+    "I'd": "I would",
+    "I'D": "I WOULD",
+    "you'd": "you would",
+    "You'd": "You would",
+    "YOU'D": "YOU WOULD",
+    "we'd": "we would",
+    "We'd": "We would",
+    "WE'D": "WE WOULD",
+    "they'd": "they would",
+    "They'd": "They would",
+    "THEY'D": "THEY WOULD",
+    // "us" contractions
+    "let's": "let us",
+    "Let's": "Let us",
+    "LET'S": "LET US",
+  };
+
+  /**
+   * Expand English contractions to their full forms for better TTS pronunciation.
+   * Handles case-insensitive matching while preserving original capitalization.
+   * @param {string} text The text containing contractions to expand
+   * @returns {string} Text with contractions expanded
+   */
+  function expandContractions(text) {
+    if (!text) return text;
+
+    let expanded = text;
+
+    // Sort contractions by length (longest first) to avoid partial matches
+    const sortedContractions = Object.keys(CONTRACTION_MAP).sort((a, b) => b.length - a.length);
+
+    for (const contraction of sortedContractions) {
+      const expansion = CONTRACTION_MAP[contraction];
+      // Use word boundaries to avoid replacing partial matches within words
+      // Escape special regex characters in the contraction
+      const escapedContraction = contraction.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const regex = new RegExp('\\b' + escapedContraction + '\\b', 'g');
+      expanded = expanded.replace(regex, expansion);
+    }
+
+    return expanded;
+  }
+
+  // ============================================
   // Browser TTS (Fast Mode) Implementation
   // ============================================
 
@@ -188,7 +343,10 @@ console.log('[AgentVibes Voice] Content script injected on:', window.location.hr
         return;
       }
 
-      const utterance = new SpeechSynthesisUtterance(text);
+      // Expand contractions for better TTS pronunciation
+      const expandedText = expandContractions(text);
+
+      const utterance = new SpeechSynthesisUtterance(expandedText);
       const voice = getBrowserVoice(voiceName);
 
       if (voice) {
@@ -236,10 +394,13 @@ console.log('[AgentVibes Voice] Content script injected on:', window.location.hr
   // ============================================
 
   function splitIntoSentences(text) {
+    // Expand contractions before sentence splitting for better TTS
+    const expandedText = expandContractions(text);
+
     // Match sentences ending with . ! ? followed by space or end of string
     const sentenceRegex = /[^.!?]+[.!?]+(?:\s|$)/g;
-    const matches = text.match(sentenceRegex) || [];
-    
+    const matches = expandedText.match(sentenceRegex) || [];
+
     // Clean up and filter
     return matches
       .map(s => s.trim())
@@ -335,10 +496,13 @@ console.log('[AgentVibes Voice] Content script injected on:', window.location.hr
     }
 
     async fetchAudioParallel(text) {
+      // Expand contractions before sending to server for better TTS
+      const expandedText = expandContractions(text);
+
       const response = await chrome.runtime.sendMessage({
         type: 'TTS_REQUEST',
         data: {
-          text: text,
+          text: expandedText,
           voice: settings.voice,
           speed: 1.0,
           pitch: 1.0
