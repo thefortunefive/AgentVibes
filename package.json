@@ -80,13 +80,18 @@
     "test:bats": "AGENTVIBES_TEST_MODE=true bats test/unit/*.bats",
     "test:node": "node --test test/unit/*.test.js",
     "test:coverage": "c8 --reporter=lcov --reporter=text node --test test/unit/*.test.js",
-    "test:verbose": "AGENTVIBES_TEST_MODE=true bats -t test/unit/*.bats"
+    "test:verbose": "AGENTVIBES_TEST_MODE=true bats -t test/unit/*.bats",
+    "dev": "tsx watch api/server.ts",
+    "build": "tsc --outDir dist",
+    "start": "node dist/api/server.js"
   },
   "dependencies": {
     "boxen": "^7.0.0",
     "chalk": "^5.0.0",
     "commander": "^10.0.0",
     "figlet": "^1.6.0",
+    "hono": "^4.0.0",
+    "@hono/node-server": "^1.0.0",
     "inquirer": "^12.0.0",
     "js-yaml": "^4.1.1",
     "ora": "^6.0.0"
@@ -98,6 +103,9 @@
     "access": "public"
   },
   "devDependencies": {
-    "c8": "^10.1.3"
+    "c8": "^10.1.3",
+    "tsx": "^4.0.0",
+    "typescript": "^5.0.0",
+    "@types/node": "^20.0.0"
   }
 }
