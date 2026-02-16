@@ -1,0 +1,80 @@
+/* AgentVibes Voice - Content Script Styles */
+
+/* Speaker icon styles */
+.agentvibes-speaker-icon {
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+/* Show icon on message hover */
+[data-agentvibes-processed]:hover .agentvibes-speaker-icon {
+  opacity: 1;
+}
+
+/* Always show on touch devices */
+@media (hover: none) {
+  .agentvibes-speaker-icon {
+    opacity: 1;
+  }
+}
+
+/* Platform-specific adjustments */
+
+/* Claude.ai specific */
+.font-claude-message .agentvibes-speaker-icon {
+  background: rgba(217, 79, 50, 0.1) !important;
+  color: #d94f32 !important;
+}
+
+.font-claude-message .agentvibes-speaker-icon:hover {
+  background: rgba(217, 79, 50, 0.2) !important;
+}
+
+/* ChatGPT specific */
+.agent-turn .agentvibes-speaker-icon,
+[data-message-author-role="assistant"] .agentvibes-speaker-icon {
+  background: rgba(25, 195, 125, 0.1) !important;
+  color: #19c37d !important;
+}
+
+.agent-turn .agentvibes-speaker-icon:hover,
+[data-message-author-role="assistant"] .agentvibes-speaker-icon:hover {
+  background: rgba(25, 195, 125, 0.2) !important;
+}
+
+/* Genspark specific */
+.assistant-message .agentvibes-speaker-icon,
+[class*="assistant"] .agentvibes-speaker-icon {
+  background: rgba(99, 102, 241, 0.1) !important;
+  color: #6366f1 !important;
+}
+
+/* Playing state animation */
+.agentvibes-speaker-icon.playing {
+  animation: agentvibes-playing 1s ease infinite;
+}
+
+@keyframes agentvibes-playing {
+  0%, 100% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 rgba(99, 102, 241, 0.4);
+  }
+  50% {
+    transform: scale(1.1);
+    box-shadow: 0 0 0 8px rgba(99, 102, 241, 0);
+  }
+}
+
+/* Ensure message containers have relative positioning for icon placement */
+[data-agentvibes-processed] {
+  position: relative !important;
+}
+
+/* Notification styles override */
+#agentvibes-speaking {
+  pointer-events: none;
+}
+
+#agentvibes-speaking > div {
+  pointer-events: auto;
+}
