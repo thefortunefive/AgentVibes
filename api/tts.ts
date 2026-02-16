@@ -1,8 +1,8 @@
 /**
  * TTS Provider Wrapper
  * 
- * Wraps the existing AgentVibes bash scripts via child_process.exec()
- * Provides a TypeScript interface for voice synthesis
+ * Uses Windows SAPI (System.Speech.Synthesis) via PowerShell
+ * Generates audio files without local playback for browser-based playback
  */
 
 import { exec, execSync } from 'child_process';
@@ -48,7 +48,7 @@ export class TTSProvider {
   private hooksDir: string;
   private projectRoot: string;
   private audioDir: string;
-  private currentVoice: string = 'en_US-lessac-medium';
+  private currentVoice: string = 'Microsoft David Desktop';
   private currentPersonality: string | undefined;
   private currentLanguage: string = 'english';
 
@@ -141,15 +141,15 @@ export class TTSProvider {
   }
 
   /**
-   * Synthesize text to speech
+   * Synthesize text to speech using Windows SAPI via PowerShell
    * @param options TTS options including text, voice, personality
    * @returns Path to generated audio file
    */
   async speak(options: TTSOptions): Promise<TTSResult> {
     const { text, voice, personality, language, sentiment } = options;
 
-    // Sanitize input
-    const sanitizedText = this.sanitizeText(text);
+    // Sanitize input for PowerShell
+    const sanitizedText = this.sanitizeTextForPowerShell(text);
     if (!sanitizedText) {
       return {
         audioPath: '',
@@ -164,49 +164,54 @@ export class TTSProvider {
     const personalityToUse = personality || this.currentPersonality;
 
     try {
-      // Set environment variables for the script
-      const env = {
-        ...process.env,
-        AGENTVIBES_NO_PLAYBACK: 'true', // Don't auto-play, just generate
-        CLAUDE_PROJECT_DIR: this.projectRoot,
-      };
-
-      // Set personality if provided
+      // Save personality if provided
       if (personalityToUse) {
-        const personalityFile = path.join(this.projectRoot, '.claude', 'tts-personality.txt');
-        fs.writeFileSync(personalityFile, personalityToUse, 'utf-8');
         this.currentPersonality = personalityToUse;
+        this.saveSettings();
       }
 
-      // Set sentiment if provided
+      // Save sentiment if provided
       if (sentiment) {
         const sentimentFile = path.join(this.projectRoot, '.claude', 'tts-sentiment.txt');
         fs.writeFileSync(sentimentFile, sentiment, 'utf-8');
       }
 
-      // Set language if provided
+      // Save language if provided
       if (language) {
+        this.currentLanguage = language;
         const languageFile = path.join(this.projectRoot, '.claude', 'tts-language.txt');
         fs.writeFileSync(languageFile, language, 'utf-8');
-        this.currentLanguage = language;
       }
 
-      // Build the command
-      const playTTSScript = path.join(this.hooksDir, 'play-tts.sh');
-      const command = `"${playTTSScript}" "${sanitizedText}" "${voiceToUse}"`;
+      // Generate unique filename
+      const timestamp = Date.now();
+      const audioFileName = `tts_${timestamp}.wav`;
+      const audioPath = path.join(this.audioDir, audioFileName);
 
-      // Execute the script
-      const { stdout, stderr } = await execAsync(command, { env, cwd: this.projectRoot });
+      // Build PowerShell command using Windows SAPI
+      // Uses System.Speech.Synthesis.SpeechSynthesizer to generate .wav file silently
+      const psCommand = `Add-Type -AssemblyName System.Speech; $synth = New-Object System.Speech.Synthesis.SpeechSynthesizer; $synth.SelectVoice('${voiceToUse}'); $synth.SetOutputToWaveFile('${audioPath.replace(/'/g, "''")}'); $synth.Speak('${sanitizedText.replace(/'/g, "''")}'); $synth.Dispose()`;
 
-      // Parse the output to find the audio file path
-      const audioPath = this.parseAudioPath(stdout + stderr);
+      // Execute PowerShell command
+      const command = `powershell.exe -NoProfile -NonInteractive -Command "${psCommand}"`;
 
-      if (!audioPath || !fs.existsSync(audioPath)) {
+      if (process.env.NODE_ENV === 'development') {
+        console.log('TTS PowerShell command:', command);
+      }
+
+      await execAsync(command, {
+        cwd: this.projectRoot,
+        timeout: 60000, // 60 second timeout for TTS generation
+        windowsHide: true, // Hide PowerShell window on Windows
+      });
+
+      // Verify the audio file was created
+      if (!fs.existsSync(audioPath)) {
         return {
           audioPath: '',
           voice: voiceToUse,
           success: false,
-          error: `Failed to generate audio. Output: ${stdout} ${stderr}`,
+          error: 'Failed to generate audio file',
         };
       }
 
@@ -216,25 +221,33 @@ export class TTSProvider {
         success: true,
       };
     } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown TTS error';
+      if (process.env.NODE_ENV === 'development') {
+        console.error('TTS Error:', errorMessage);
+      }
       return {
         audioPath: '',
         voice: voiceToUse,
         success: false,
-        error: error instanceof Error ? error.message : 'Unknown TTS error',
+        error: errorMessage,
       };
     }
   }
 
   /**
-   * List available voices
+   * List available voices using Windows SAPI via PowerShell
    * @returns Array of available voices
    */
   async listVoices(): Promise<Voice[]> {
     try {
-      const voiceManagerScript = path.join(this.hooksDir, 'voice-manager.sh');
-      const command = `"${voiceManagerScript}" list-simple`;
+      // PowerShell command to get installed SAPI voices
+      const psCommand = `Add-Type -AssemblyName System.Speech; (New-Object System.Speech.Synthesis.SpeechSynthesizer).GetInstalledVoices() | ForEach-Object { $_.VoiceInfo.Name }`;
+      const command = `powershell.exe -NoProfile -NonInteractive -Command "${psCommand}"`;
       
-      const { stdout } = await execAsync(command, { cwd: this.projectRoot });
+      const { stdout } = await execAsync(command, { 
+        cwd: this.projectRoot,
+        windowsHide: true,
+      });
       
       // Parse voice list
       const voices: Voice[] = [];
@@ -242,67 +255,24 @@ export class TTSProvider {
       
       for (const line of lines) {
         const voiceName = line.trim();
-        if (voiceName && !voiceName.startsWith('(')) {
+        if (voiceName && voiceName.length > 0) {
           voices.push({
             name: voiceName,
-            provider: this.inferProvider(voiceName),
+            provider: 'windows-sapi',
+            description: 'Windows SAPI voice',
           });
         }
       }
 
-      // If no voices found via script, try to get from voice directory
-      if (voices.length === 0) {
-        return this.listVoicesFromDirectory();
-      }
-
       return voices;
     } catch (error) {
-      // Fallback to directory listing
-      return this.listVoicesFromDirectory();
+      // Return default Windows voices if PowerShell query fails
+      return [
+        { name: 'Microsoft David Desktop', provider: 'windows-sapi', description: 'Male English (US)' },
+        { name: 'Microsoft Zira Desktop', provider: 'windows-sapi', description: 'Female English (US)' },
+        { name: 'Microsoft Mark Desktop', provider: 'windows-sapi', description: 'Male English (US)' },
+      ];
     }
-  }
-
-  private listVoicesFromDirectory(): Voice[] {
-    const voices: Voice[] = [];
-    
-    // Check Piper voices directory
-    const piperVoicesDir = path.join(os.homedir(), '.local', 'share', 'piper', 'voices');
-    const altPiperDir = path.join(os.homedir(), '.claude', 'piper-voices');
-    
-    const voiceDirs = [piperVoicesDir, altPiperDir];
-    
-    for (const dir of voiceDirs) {
-      if (fs.existsSync(dir)) {
-        try {
-          const files = fs.readdirSync(dir);
-          for (const file of files) {
-            if (file.endsWith('.onnx')) {
-              const voiceName = file.replace('.onnx', '');
-              voices.push({
-                name: voiceName,
-                provider: 'piper',
-              });
-            }
-          }
-        } catch {
-          // Ignore errors reading directory
-        }
-      }
-    }
-
-    return voices;
-  }
-
-  private inferProvider(voiceName: string): string {
-    // Piper voices typically have pattern: en_US-lessac-medium
-    if (voiceName.includes('_') && voiceName.includes('-')) {
-      return 'piper';
-    }
-    // macOS voices are typically single words like "Samantha"
-    if (/^[A-Z][a-z]+$/.test(voiceName)) {
-      return 'macos';
-    }
-    return 'unknown';
   }
 
   /**
@@ -312,10 +282,19 @@ export class TTSProvider {
    */
   async setVoice(voiceName: string): Promise<boolean> {
     try {
-      const voiceManagerScript = path.join(this.hooksDir, 'voice-manager.sh');
-      const command = `"${voiceManagerScript}" switch --silent "${voiceName}"`;
+      // Validate that the voice exists by trying to list voices
+      const availableVoices = await this.listVoices();
+      const voiceExists = availableVoices.some(v => v.name.toLowerCase() === voiceName.toLowerCase());
       
-      await execAsync(command, { cwd: this.projectRoot });
+      // If exact match not found, try case-insensitive partial match
+      if (!voiceExists) {
+        const partialMatch = availableVoices.find(v => 
+          v.name.toLowerCase().includes(voiceName.toLowerCase())
+        );
+        if (partialMatch) {
+          voiceName = partialMatch.name;
+        }
+      }
       
       this.currentVoice = voiceName;
       this.saveSettings();
@@ -332,15 +311,9 @@ export class TTSProvider {
    * @returns Status object with provider info
    */
   async getStatus(): Promise<TTSStatus> {
-    let activeProvider = 'piper';
+    let activeProvider = 'windows-sapi';
     let currentVoice = this.currentVoice;
-    let piperInstalled = false;
-
-    // Check provider
-    const providerFile = path.join(this.projectRoot, '.claude', 'tts-provider.txt');
-    if (fs.existsSync(providerFile)) {
-      activeProvider = fs.readFileSync(providerFile, 'utf-8').trim();
-    }
+    let sapiAvailable = false;
 
     // Check current voice from file
     const voiceFile = path.join(this.projectRoot, '.claude', 'tts-voice.txt');
@@ -348,12 +321,14 @@ export class TTSProvider {
       currentVoice = fs.readFileSync(voiceFile, 'utf-8').trim();
     }
 
-    // Check if piper is installed
+    // Check if Windows SAPI is available
     try {
-      execSync('which piper', { stdio: 'pipe' });
-      piperInstalled = true;
+      const psCommand = `Add-Type -AssemblyName System.Speech; Write-Output 'SAPI_AVAILABLE'`;
+      const command = `powershell.exe -NoProfile -Command "${psCommand}"`;
+      execSync(command, { stdio: 'pipe', windowsHide: true });
+      sapiAvailable = true;
     } catch {
-      piperInstalled = false;
+      sapiAvailable = false;
     }
 
     // Count available voices
@@ -379,13 +354,13 @@ export class TTSProvider {
       currentPersonality: personality,
       currentSentiment: sentiment,
       currentLanguage: this.currentLanguage,
-      piperInstalled,
+      piperInstalled: sapiAvailable, // Reusing field for backward compatibility
       voicesAvailable: voices.length,
     };
   }
 
   /**
-   * Sanitize text for shell execution
+   * Sanitize text for shell execution (legacy, kept for compatibility)
    */
   private sanitizeText(text: string): string {
     // Remove dangerous characters
@@ -400,25 +375,43 @@ export class TTSProvider {
   }
 
   /**
-   * Parse audio file path from script output
+   * Sanitize text for PowerShell execution
+   * Escapes single quotes by doubling them
+   */
+  private sanitizeTextForPowerShell(text: string): string {
+    return text
+      .replace(/'/g, "''")  // Escape single quotes for PowerShell
+      .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F]/g, '')  // Remove control characters
+      .trim();
+  }
+
+  /**
+   * Parse audio file path from script output (legacy, kept for compatibility)
+   * Handles ANSI color codes and various output formats
    */
   private parseAudioPath(output: string): string | null {
+    // Strip ANSI color codes (format: \x1b[...m)
+    const cleanOutput = output.replace(/\x1b\[[0-9;]*m/g, '');
+
     // Look for patterns like:
     // "💾 Saved to: /path/to/audio.wav"
-    // Or just any .wav path in the output
-    
-    const savedMatch = output.match(/Saved to:\s*(\S+)/i);
+    // The path may contain spaces, so capture everything after "Saved to:" until emoji or end of line
+    const savedMatch = cleanOutput.match(/Saved to:\s*([^\n💾]+\.wav)/i);
     if (savedMatch) {
-      return savedMatch[1];
+      const potentialPath = savedMatch[1].trim();
+      // Verify this is a valid-looking path (starts with / or ~)
+      if (potentialPath.startsWith('/') || potentialPath.startsWith('~')) {
+        return potentialPath;
+      }
     }
 
-    // Look for any .wav file path
-    const wavMatch = output.match(/(\S+\.wav)/i);
+    // Look for any .wav file path (absolute paths only)
+    const wavMatch = cleanOutput.match(/(\/[^\s]+\.wav)/i);
     if (wavMatch) {
       return wavMatch[1];
     }
 
-    // Look in the audio directory for the most recent file
+    // Look in the audio directory for the most recent file (fallback)
     if (fs.existsSync(this.audioDir)) {
       const files = fs.readdirSync(this.audioDir)
         .filter(f => f.endsWith('.wav'))
@@ -428,8 +421,9 @@ export class TTSProvider {
           time: fs.statSync(path.join(this.audioDir, f)).mtime.getTime(),
         }))
         .sort((a, b) => b.time - a.time);
-      
+
       if (files.length > 0) {
+        // Return the most recent file
         return files[0].path;
       }
     }
