@@ -9,6 +9,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   const volumeSlider = document.getElementById('volumeSlider');
   const volumeFill = document.getElementById('volumeFill');
   const volumeValue = document.getElementById('volumeValue');
+  const rateSlider = document.getElementById('rateSlider');
+  const rateFill = document.getElementById('rateFill');
+  const rateValue = document.getElementById('rateValue');
   const voiceSelect = document.getElementById('voiceSelect');
   const testBtn = document.getElementById('testBtn');
   const testLoading = document.getElementById('testLoading');
@@ -25,6 +28,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     autoSpeak: true,
     fastMode: true,  // Default to Fast Mode
     volume: 1.0,
+    rate: 1.0,
     voice: null
   };
   let isServerOnline = false;
@@ -39,7 +43,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   async function loadSettings() {
     try {
       const result = await chrome.storage.local.get([
-        'enabled', 'autoSpeak', 'fastMode', 'volume', 'voice'
+        'enabled', 'autoSpeak', 'fastMode', 'volume', 'rate', 'voice'
       ]);
 
       settings = {
@@ -47,6 +51,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         autoSpeak: result.autoSpeak !== false,
         fastMode: result.fastMode !== false,  // Default to true (Fast Mode)
         volume: result.volume || 1.0,
+        rate: result.rate || 1.0,
         voice: result.voice || null
       };
 
@@ -55,6 +60,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       updateToggleUI(autoSpeakToggle, settings.autoSpeak);
       updateToggleUI(fastModeToggle, settings.fastMode);
       updateVolumeUI(settings.volume);
+      updateRateUI(settings.rate);
 
       // Update voice selector if voices loaded
       if (settings.voice && voices.length > 0) {
@@ -110,6 +116,16 @@ document.addEventListener('DOMContentLoaded', async () => {
     volumeSlider.value = percentage;
     volumeFill.style.width = `${percentage}%`;
     volumeValue.textContent = `${percentage}%`;
+  }
+
+  function updateRateUI(rate) {
+    // Rate slider: min=5 (0.5), max=20 (2.0), step=1, so value = rate * 10
+    const sliderValue = Math.round(rate * 10);
+    rateSlider.value = sliderValue;
+    // Calculate fill percentage: (value - min) / (max - min) = (sliderValue - 5) / 15
+    const fillPercentage = ((sliderValue - 5) / 15) * 100;
+    rateFill.style.width = `${fillPercentage}%`;
+    rateValue.textContent = `${rate.toFixed(1)}x`;
   }
 
   function updateFooterText() {
@@ -359,7 +375,7 @@ document.addEventListener('DOMContentLoaded', async () => {
           data: {
             text: testText,
             voice: settings.voice,
-            speed: 1.0,
+            speed: settings.rate,
             pitch: 1.0
           }
         });
@@ -460,6 +476,15 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Debounce save
     clearTimeout(window.volumeSaveTimeout);
     window.volumeSaveTimeout = setTimeout(saveSettings, 300);
+  });
+
+  rateSlider.addEventListener('input', async () => {
+    const sliderValue = parseInt(rateSlider.value);
+    settings.rate = sliderValue / 10;
+    updateRateUI(settings.rate);
+    // Debounce save
+    clearTimeout(window.rateSaveTimeout);
+    window.rateSaveTimeout = setTimeout(saveSettings, 300);
   });
 
   voiceSelect.addEventListener('change', async () => {

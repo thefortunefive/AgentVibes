@@ -39,7 +39,7 @@ console.log('[AgentVibes Voice] Content script injected on:', window.location.hr
   };
 
   let currentPlatform = null;
-  let settings = { enabled: true, volume: 1.0, voice: null, autoSpeak: true, fastMode: true };
+  let settings = { enabled: true, volume: 1.0, rate: 1.0, voice: null, autoSpeak: true, fastMode: true };
   let spokenMessages = new Set();
   let currentAudio = null;
   let stopButton = null;
@@ -355,7 +355,7 @@ console.log('[AgentVibes Voice] Content script injected on:', window.location.hr
       }
 
       utterance.volume = settings.volume;
-      utterance.rate = 1.0;
+      utterance.rate = settings.rate;
       utterance.pitch = 1.0;
 
       utterance.onstart = () => {
@@ -545,7 +545,7 @@ console.log('[AgentVibes Voice] Content script injected on:', window.location.hr
         data: {
           text: expandedText,
           voice: settings.voice,
-          speed: 1.0,
+          speed: settings.rate,
           pitch: 1.0
         }
       });
@@ -920,17 +920,15 @@ console.log('[AgentVibes Voice] Content script injected on:', window.location.hr
       clearInterval(state.checkInterval);
 
       // Speak any remaining text that didn't end with a sentence
-      // Extract remaining portion from original text based on sentence position
+      // Fix: Use filter instead of slice to avoid position-based duplication issues
       const allSentences = splitIntoSentences(currentText);
-      let spokenCount = 0;
-      for (const sentence of allSentences) {
-        if (spokenSentences.has(getSentenceHash(sentence))) {
-          spokenCount++;
-        }
-      }
 
-      // Get sentences that haven't been spoken (including incomplete ones)
-      const remainingSentences = allSentences.slice(spokenCount);
+      // Get sentences that haven't been spoken by checking hash (not position)
+      // This prevents duplicates if sentence extraction results vary slightly
+      const remainingSentences = allSentences.filter(sentence => {
+        const hash = getSentenceHash(sentence);
+        return !spokenSentences.has(hash);
+      });
       const remainingText = remainingSentences.join(' ').trim();
 
       if (remainingText.length > 0) {
@@ -1487,12 +1485,13 @@ console.log('[AgentVibes Voice] Content script injected on:', window.location.hr
   async function loadSettings() {
     try {
       const result = await chrome.storage.local.get([
-        'enabled', 'volume', 'voice', 'autoSpeak', 'fastMode', 'spokenMessages'
+        'enabled', 'volume', 'rate', 'voice', 'autoSpeak', 'fastMode', 'spokenMessages'
       ]);
 
       settings = {
         enabled: result.enabled !== false,
         volume: result.volume || 1.0,
+        rate: result.rate || 1.0,
         voice: result.voice || null,
         autoSpeak: result.autoSpeak !== false,
         fastMode: result.fastMode !== false  // Default to Fast Mode

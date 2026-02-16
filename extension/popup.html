@@ -511,7 +511,25 @@
         <input type="range" id="volumeSlider" min="0" max="100" value="100">
       </div>
     </div>
-    
+
+    <!-- Speed Control -->
+    <div class="volume-control">
+      <div class="volume-header">
+        <div class="volume-label">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10"/>
+            <polyline points="12 6 12 12 16 14"/>
+          </svg>
+          Speed
+        </div>
+        <span class="volume-value" id="rateValue">1.0x</span>
+      </div>
+      <div class="slider-container">
+        <div class="slider-fill" id="rateFill" style="width: 33%"></div>
+        <input type="range" id="rateSlider" min="5" max="20" value="10" step="1">
+      </div>
+    </div>
+
     <!-- Voice Selector -->
     <div class="voice-control">
       <div class="voice-label-row">
