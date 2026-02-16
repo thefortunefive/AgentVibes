@@ -15,21 +15,24 @@
       messageSelector: '.font-claude-message',
       streamingAttribute: 'data-is-streaming',
       textSelector: '.prose, .font-claude-message',
-      codeBlockSelector: 'pre'
+      codeBlockSelector: 'pre',
+      containerSelector: 'div[class*="scroll"], div[class*="conversation"], main, div[class*="content"]'
     },
     CHATGPT: {
       domain: 'chat.openai.com',
       messageSelector: '.agent-turn, [data-message-author-role="assistant"]',
       streamingSelector: '.result-streaming',
       textSelector: '.markdown',
-      codeBlockSelector: 'pre'
+      codeBlockSelector: 'pre',
+      containerSelector: 'main, [class*="conversation"], [class*="messages"]'
     },
     GENSPARK: {
       domain: 'genspark.ai',
       messageSelector: '.message-content, .assistant-message, [class*="assistant"]',
       streamingAttribute: 'data-streaming',
       textSelector: '.message-body, .content, [class*="content"]',
-      codeBlockSelector: 'pre, code'
+      codeBlockSelector: 'pre, code',
+      containerSelector: 'div[class*="chat"], div[class*="messages"], main, div[class*="conversation"]'
     }
   };
   
@@ -38,6 +41,14 @@
   let spokenMessages = new Set(); // Track spoken message hashes
   let currentAudio = null;
   let observer = null;
+  let isInitialized = false;
+  let isPageReady = false;
+  let lastSpeakTime = 0;
+  const SPEAK_COOLDOWN = 5000; // 5 seconds between speaks
+  const INITIAL_LOAD_GRACE = 5000; // 5 seconds grace period
+  const MIN_TEXT_LENGTH = 50; // Changed from 20 to 50
+  const OBSERVER_DELAY = 3000; // Wait 3 seconds before starting observer
+  const DEBOUNCE_DELAY = 500; // 500ms debounce
   
   // ============================================
   // Utility Functions
@@ -234,6 +245,13 @@
     if (!text || text.length < 5) return;
     if (!settings.enabled && !options.isReplay) return;
     
+    // Check cooldown (5 seconds between speaks)
+    const now = Date.now();
+    if (!options.isReplay && (now - lastSpeakTime) < SPEAK_COOLDOWN) {
+      console.log('[AgentVibes] Speak cooldown active, skipping');
+      return;
+    }
+    
     const textHash = hashMessage(text);
     
     // Skip if already spoken (unless manual replay)
@@ -242,7 +260,8 @@
       return;
     }
     
-    // Mark as spoken
+    // Update last speak time and mark as spoken
+    lastSpeakTime = now;
     spokenMessages.add(textHash);
     
     // Stop any current audio
@@ -397,6 +416,12 @@
   // ============================================
   
   function processMessageElement(element, platform) {
+    // Skip during initial page load grace period
+    if (!isPageReady) {
+      console.log('[AgentVibes] Page not ready yet, skipping message');
+      return;
+    }
+    
     const config = PLATFORMS[platform];
     if (!config) {
       // Generic fallback
@@ -417,8 +442,8 @@
     
     const text = extractCleanText(textElement, platform);
     
-    // Only process substantial messages (more than 20 chars)
-    if (text.length < 20) return;
+    // Only process substantial messages (more than 50 chars)
+    if (text.length < MIN_TEXT_LENGTH) return;
     
     const textHash = hashMessage(text);
     
@@ -438,11 +463,17 @@
   }
   
   function processGenericMessage(element) {
+    // Skip during initial page load grace period
+    if (!isPageReady) {
+      console.log('[AgentVibes] Page not ready yet, skipping generic message');
+      return;
+    }
+    
     // Generic detection for any chat-like element
     const text = extractCleanText(element, 'GENERIC');
     
-    // Only process substantial messages
-    if (text.length < 20) return;
+    // Only process substantial messages (50 chars minimum)
+    if (text.length < MIN_TEXT_LENGTH) return;
     
     // Detect if this looks like an AI message (heuristics)
     const isAssistant = (
@@ -472,20 +503,67 @@
   // MutationObserver Setup
   // ============================================
   
+  function findContainer(platform) {
+    const config = PLATFORMS[platform];
+    if (!config || !config.containerSelector) return null;
+    
+    // Try to find the container
+    const container = document.querySelector(config.containerSelector);
+    if (container) return container;
+    
+    // Fallback: look for main content areas
+    const fallbacks = [
+      'main',
+      '[role="main"]',
+      'article',
+      'div[class*="content"]',
+      'div[class*="chat"]',
+      'div[class*="messages"]'
+    ];
+    
+    for (const selector of fallbacks) {
+      const el = document.querySelector(selector);
+      if (el) return el;
+    }
+    
+    return null;
+  }
+  
+  let debounceTimer = null;
+  
   function setupObserver(platform) {
     if (observer) {
       observer.disconnect();
     }
     
     const config = PLATFORMS[platform];
-    const targetNode = document.body;
+    
+    // Find the specific container instead of observing entire body
+    let targetNode = findContainer(platform);
+    
+    if (!targetNode) {
+      console.log('[AgentVibes] Chat container not found yet, will retry...');
+      // Retry after a delay
+      setTimeout(() => setupObserver(platform), 1000);
+      return;
+    }
+    
+    console.log('[AgentVibes] Observer attached to container:', targetNode);
     
     observer = new MutationObserver((mutations) => {
-      // Debounce to avoid processing during rapid DOM changes
-      clearTimeout(window.agentvibesDebounce);
-      window.agentvibesDebounce = setTimeout(() => {
+      // Ignore mutations during initial page load
+      if (!isPageReady) {
+        return;
+      }
+      
+      // Debounce: clear existing timer and set new one
+      if (debounceTimer) {
+        clearTimeout(debounceTimer);
+      }
+      
+      debounceTimer = setTimeout(() => {
         detectAndProcessMessages(platform);
-      }, 500);
+      }, DEBOUNCE_DELAY);
     });
     
     observer.observe(targetNode, {
@@ -495,8 +573,12 @@
       attributeFilter: ['data-is-streaming', 'data-streaming', 'class']
     });
     
-    // Initial scan
-    detectAndProcessMessages(platform);
+    isInitialized = true;
+    
+    // Initial scan after delay
+    setTimeout(() => {
+      detectAndProcessMessages(platform);
+    }, 500);
   }
   
   function detectAndProcessMessages(platform) {
@@ -581,7 +663,21 @@
     console.log(`[AgentVibes] Detected platform: ${currentPlatform}`);
     
     loadSettings().then(() => {
-      setupObserver(currentPlatform);
+      // Wait 3 seconds before setting up observer
+      console.log('[AgentVibes] Waiting 3 seconds before activating observer...');
+      
+      setTimeout(() => {
+        setupObserver(currentPlatform);
+        
+        // Set page as ready after initial grace period
+        setTimeout(() => {
+          isPageReady = true;
+          console.log('[AgentVibes] Page ready - processing messages enabled');
+          
+          // Do initial scan now that page is ready
+          detectAndProcessMessages(currentPlatform);
+        }, INITIAL_LOAD_GRACE);
+      }, OBSERVER_DELAY);
     });
   }
   
@@ -599,7 +695,19 @@
     if (url !== lastUrl) {
       lastUrl = url;
       console.log('[AgentVibes] URL changed, reinitializing...');
-      setTimeout(init, 1000); // Delay to let new page render
+      
+      // Reset state
+      isInitialized = false;
+      isPageReady = false;
+      
+      // Delay to let new page render, then re-init
+      setTimeout(() => {
+        if (observer) {
+          observer.disconnect();
+          observer = null;
+        }
+        init();
+      }, 2000); // 2 second delay after navigation
     }
   }).observe(document, { subtree: true, childList: true });
   
