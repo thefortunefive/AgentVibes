@@ -84,6 +84,7 @@
       border-radius: 50%;
       background: #ef4444;
       transition: background 0.3s;
+      flex-shrink: 0;
     }
     
     .status-dot.online {
@@ -103,10 +104,46 @@
     
     .status-text {
       color: #a1a1aa;
+      flex: 1;
     }
     
     .status-text.connected {
       color: #10b981;
+    }
+    
+    /* Refresh button */
+    .refresh-btn {
+      width: 24px;
+      height: 24px;
+      background: transparent;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #71717a;
+      transition: all 0.2s;
+      flex-shrink: 0;
+    }
+    
+    .refresh-btn:hover {
+      color: #fff;
+      background: rgba(255, 255, 255, 0.1);
+    }
+    
+    .refresh-btn svg {
+      width: 14px;
+      height: 14px;
+    }
+    
+    .refresh-btn.spinning svg {
+      animation: spin 0.5s linear;
+    }
+    
+    @keyframes spin {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
     }
     
     /* Toggle Switch */
@@ -241,13 +278,47 @@
       padding: 14px 0;
     }
     
+    .voice-label-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 10px;
+    }
+    
     .voice-label {
       display: flex;
       align-items: center;
       gap: 8px;
       font-size: 14px;
       color: #fff;
-      margin-bottom: 10px;
+    }
+    
+    .voice-refresh-btn {
+      width: 24px;
+      height: 24px;
+      background: transparent;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #71717a;
+      transition: all 0.2s;
+    }
+    
+    .voice-refresh-btn:hover {
+      color: #fff;
+      background: rgba(255, 255, 255, 0.1);
+    }
+    
+    .voice-refresh-btn svg {
+      width: 14px;
+      height: 14px;
+    }
+    
+    .voice-refresh-btn.spinning svg {
+      animation: spin 0.5s linear;
     }
     
     select {
@@ -360,6 +431,13 @@
     <div class="status-bar">
       <div class="status-dot checking" id="statusDot"></div>
       <span class="status-text" id="statusText">Checking server...</span>
+      <button class="refresh-btn" id="refreshStatusBtn" title="Refresh server status">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <polyline points="23 4 23 10 17 10"/>
+          <polyline points="1 20 1 14 7 14"/>
+          <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
+        </svg>
+      </button>
     </div>
     
     <!-- Enable/Disable Toggle -->
@@ -418,13 +496,22 @@
     
     <!-- Voice Selector -->
     <div class="voice-control">
-      <div class="voice-label">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <path d="M12 2a3 3 0 0 0-3 3v14a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/>
-          <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
-          <line x1="12" y1="19" x2="12" y2="22"/>
-        </svg>
-        Voice
+      <div class="voice-label-row">
+        <div class="voice-label">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M12 2a3 3 0 0 0-3 3v14a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/>
+            <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+            <line x1="12" y1="19" x2="12" y2="22"/>
+          </svg>
+          Voice
+        </div>
+        <button class="voice-refresh-btn" id="refreshVoicesBtn" title="Refresh voice list">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="23 4 23 10 17 10"/>
+            <polyline points="1 20 1 14 7 14"/>
+            <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
+          </svg>
+        </button>
       </div>
       <select id="voiceSelect" disabled>
         <option value="">Loading voices...</option>

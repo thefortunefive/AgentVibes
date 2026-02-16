@@ -14,6 +14,8 @@ document.addEventListener('DOMContentLoaded', async () => {
   const stopBtn = document.getElementById('stopBtn');
   const statusDot = document.getElementById('statusDot');
   const statusText = document.getElementById('statusText');
+  const refreshStatusBtn = document.getElementById('refreshStatusBtn');
+  const refreshVoicesBtn = document.getElementById('refreshVoicesBtn');
   
   // State
   let settings = {
@@ -25,6 +27,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   let isServerOnline = false;
   let voices = [];
   let currentAudio = null;
+  let isFirstLoad = true;
   
   // ============================================
   // Load Settings
@@ -81,12 +84,14 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
   
   // ============================================
-  // Check Server Status
+  // Check Server Status (single check, no polling)
   // ============================================
   
-  async function checkServerStatus() {
-    statusDot.className = 'status-dot checking';
-    statusText.textContent = 'Checking server...';
+  async function checkServerStatus(showChecking = true) {
+    if (showChecking) {
+      statusDot.className = 'status-dot checking';
+      statusText.textContent = 'Checking server...';
+    }
     
     try {
       const response = await chrome.runtime.sendMessage({ type: 'CHECK_SERVER_STATUS' });
@@ -99,9 +104,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         statusText.classList.add('connected');
         testBtn.disabled = false;
         voiceSelect.disabled = false;
-        
-        // Always refresh voices from server when popup opens
-        await fetchVoices();
       } else {
         statusDot.className = 'status-dot';
         statusText.textContent = 'Server offline - Start AgentVibes';
@@ -119,13 +121,16 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
   
   // ============================================
-  // Fetch Voices
+  // Fetch Voices (single load, manual refresh only)
   // ============================================
   
   async function fetchVoices() {
-    try {
+    // Only show loading on first load or explicit refresh
+    if (voices.length === 0) {
       voiceSelect.innerHTML = '<option value="">Loading voices...</option>';
-      
+    }
+    
+    try {
       const response = await chrome.runtime.sendMessage({ type: 'GET_VOICES' });
       
       if (response.success && response.voices) {
@@ -323,19 +328,37 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   });
   
+  // Refresh status button - manual re-check only
+  refreshStatusBtn.addEventListener('click', async () => {
+    await checkServerStatus(true);
+    // Only refresh voices if server came online and we need them
+    if (isServerOnline && voices.length === 0) {
+      await fetchVoices();
+    }
+  });
+  
+  // Refresh voices button - manual reload only
+  refreshVoicesBtn.addEventListener('click', async () => {
+    if (!isServerOnline) return;
+    refreshVoicesBtn.classList.add('spinning');
+    await fetchVoices();
+    setTimeout(() => refreshVoicesBtn.classList.remove('spinning'), 500);
+  });
+  
   // ============================================
-  // Initialize
+  // Initialize - Single check on popup open, no polling
   // ============================================
   
   await loadSettings();
-  await checkServerStatus();
+  await checkServerStatus(true);
   
-  // Re-check status periodically while popup is open
-  const statusInterval = setInterval(checkServerStatus, 5000);
+  // Load voices once on initial load if server is online
+  if (isServerOnline) {
+    await fetchVoices();
+  }
   
-  // Clean up on popup close
+  // Clean up on popup close - stop any playing audio
   window.addEventListener('beforeunload', () => {
-    clearInterval(statusInterval);
     if (currentAudio) {
       currentAudio.pause();
     }
