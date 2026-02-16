@@ -208,15 +208,30 @@ When the user asks about database operations, include the appropriate ACTION blo
     }
 
     // Synthesize speech
-    const ttsResult = await tts.speak({
-      text: reply,
-      voice,
-      personality,
-      language,
-      sentiment,
-    });
+    // IMPORTANT: AGENTVIBES_NO_PLAYBACK=true is set in tts.speak() to prevent local playback
+    // Audio will be served via HTTP and played in browser using <audio> element
+    let ttsResult;
+    try {
+      ttsResult = await tts.speak({
+        text: reply,
+        voice,
+        personality,
+        language,
+        sentiment,
+      });
+    } catch (ttsError) {
+      console.error('TTS synthesis error:', ttsError);
+      // Return LLM response even if TTS fails
+      return c.json<ChatResponse>({
+        reply,
+        voice: voice || 'default',
+        success: true, // LLM succeeded even if TTS failed
+        error: `TTS failed: ${ttsError instanceof Error ? ttsError.message : 'Unknown TTS error'}`,
+      }, 200);
+    }
 
     if (!ttsResult.success) {
+      console.error('TTS failed:', ttsResult.error);
       return c.json<ChatResponse>({
         reply,
         voice: ttsResult.voice,
@@ -226,7 +241,10 @@ When the user asks about database operations, include the appropriate ACTION blo
     }
 
     // Generate URL for audio file
+    // The audio file is served via GET /audio/:filename endpoint
     const audioUrl = `/audio/${path.basename(ttsResult.audioPath)}`;
+
+    console.log(`TTS generated: ${ttsResult.audioPath} -> ${audioUrl}`);
 
     return c.json<ChatResponse>({
       reply,
@@ -355,22 +373,35 @@ app.post('/api/tts', async (c) => {
       }, 400);
     }
 
-    const ttsResult = await tts.speak({
-      text,
-      voice,
-      personality,
-      language,
-      sentiment,
-    });
+    let ttsResult;
+    try {
+      ttsResult = await tts.speak({
+        text,
+        voice,
+        personality,
+        language,
+        sentiment,
+      });
+    } catch (ttsError) {
+      console.error('TTS endpoint synthesis error:', ttsError);
+      return c.json({
+        success: false,
+        error: ttsError instanceof Error ? ttsError.message : 'TTS synthesis failed',
+      }, 500);
+    }
 
     if (!ttsResult.success) {
+      console.error('TTS endpoint failed:', ttsResult.error);
       return c.json({
         success: false,
         error: ttsResult.error || 'TTS failed',
       }, 500);
     }
 
+    // Generate URL for audio file
     const audioUrl = `/audio/${path.basename(ttsResult.audioPath)}`;
+
+    console.log(`TTS endpoint generated: ${ttsResult.audioPath} -> ${audioUrl}`);
 
     return c.json({
       success: true,

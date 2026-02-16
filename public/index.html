@@ -724,23 +724,21 @@
 
             const messageDiv = document.createElement('div');
             messageDiv.className = `message ${role}`;
-            
+
             const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
             const avatarIcon = role === 'user' ? 'fa-user' : 'fa-robot';
-            
+
             let audioHtml = '';
+            let autoPlayAttempted = false;
+
             if (audioUrl && role === 'assistant' && !state.isMuted) {
                 audioHtml = `
-                    <div class="audio-player" onclick="playAudio('${audioUrl}')">
+                    <div class="audio-player" data-audio-url="${audioUrl}">
                         <i class="fas fa-play"></i>
                         <span>Play response</span>
                     </div>
                 `;
-                
-                // Auto-play if not muted
-                if (!state.isMuted) {
-                    setTimeout(() => playAudio(audioUrl), 100);
-                }
+                autoPlayAttempted = true;
             }
 
             messageDiv.innerHTML = `
@@ -756,6 +754,25 @@
 
             elements.chatMessages.appendChild(messageDiv);
             scrollToBottom();
+
+            // Setup audio player click handler
+            const audioPlayer = messageDiv.querySelector('.audio-player');
+            if (audioPlayer) {
+                const url = audioPlayer.dataset.audioUrl;
+                audioPlayer.addEventListener('click', () => playAudio(url));
+            }
+
+            // Auto-play if not muted (with retry logic)
+            if (autoPlayAttempted && audioUrl) {
+                // Small delay to ensure DOM is ready
+                setTimeout(() => {
+                    const audio = new Audio(audioUrl);
+                    audio.play().catch(error => {
+                        console.log('Auto-play failed (expected in some browsers):', error.message);
+                        // Don't show error - user can click play button instead
+                    });
+                }, 200);
+            }
         }
 
         // Show Typing Indicator
@@ -794,10 +811,35 @@
                 state.currentAudio = null;
             }
 
-            state.currentAudio = new Audio(audioUrl);
-            state.currentAudio.play().catch(error => {
-                console.error('Audio playback error:', error);
+            // Create audio element with proper attributes
+            const audio = new Audio(audioUrl);
+            audio.preload = 'auto';
+
+            // Add error handling for loading issues
+            audio.addEventListener('error', (e) => {
+                console.error('Audio loading error:', e);
+                console.error('Audio error code:', audio.error ? audio.error.code : 'unknown');
+                console.error('Audio error message:', audio.error ? audio.error.message : 'unknown');
             });
+
+            // Add canplaythrough event to ensure audio is ready
+            audio.addEventListener('canplaythrough', () => {
+                console.log('Audio ready to play:', audioUrl);
+            });
+
+            state.currentAudio = audio;
+
+            // Attempt to play with better error handling
+            const playPromise = audio.play();
+            if (playPromise !== undefined) {
+                playPromise.catch(error => {
+                    console.error('Audio playback error:', error);
+                    // Auto-play was prevented, show UI to let user click to play
+                    if (error.name === 'NotAllowedError') {
+                        console.log('Auto-play prevented by browser. User interaction required.');
+                    }
+                });
+            }
         }
 
         // Scroll to Bottom
