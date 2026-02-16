@@ -1,10 +1,11 @@
 console.log('[AgentVibes Voice] Content script injected on:', window.location.href);
 
-// AgentVibes Voice - Content Script (Simplified Version)
-// Simple "wait then speak" approach - no streaming complexity
-// 1. Wait for message to be complete
-// 2. Split into chunks
-// 3. Play sequentially with preloading
+// AgentVibes Voice - Content Script (Parallel TTS Optimization)
+// When a message is fully complete:
+// 1. Split text into two roughly equal halves at the nearest sentence boundary (unless under 100 chars)
+// 2. Send both halves to TTS server in parallel
+// 3. Play first half immediately when audio is ready
+// 4. Second half plays immediately after first finishes (already preloaded)
 
 (function() {
   'use strict';
@@ -53,6 +54,7 @@ console.log('[AgentVibes Voice] Content script injected on:', window.location.hr
   const SPEAK_COOLDOWN = 5000;
   const INITIAL_LOAD_GRACE = 5000;
   const MIN_TEXT_LENGTH = 50;
+  const PARALLEL_SPLIT_THRESHOLD = 100; // Don't split messages under 100 chars
   const OBSERVER_DELAY = 3000;
   const DEBOUNCE_DELAY = 500;
   const STREAMING_CHECK_INTERVAL = 500;
@@ -62,189 +64,213 @@ console.log('[AgentVibes Voice] Content script injected on:', window.location.hr
   const monitoredMessages = new Map(); // messageId -> { element, lastText, lastChangeTime, isComplete }
 
   // ============================================
-  // Simple Sequential Audio Player
+  // Parallel Audio Player with Dual Preloading
   // ============================================
 
-  class AudioPlayer {
+  class ParallelAudioPlayer {
     constructor() {
-      this.queue = [];
       this.isPlaying = false;
       this.currentAudio = null;
-      this.nextAudioData = null;
-      this.nextChunk = null;
+      this.preloadedAudio = null; // For second half
     }
 
-    // Add chunks to queue and start playing
-    playChunks(chunks) {
-      if (!chunks || chunks.length === 0) return;
+    // Split text into two roughly equal halves at sentence boundary
+    splitTextIntoHalves(text) {
+      if (text.length < PARALLEL_SPLIT_THRESHOLD) {
+        return [text]; // Don't split short messages
+      }
 
-      this.queue.push(...chunks);
-      console.log('[AgentVibes Voice] Added', chunks.length, 'chunks to queue');
+      // Find sentence boundaries
+      const sentenceRegex = /[^.!?]+[.!?]+(?:\s|$)/g;
+      const sentences = text.match(sentenceRegex) || [text];
 
-      if (!this.isPlaying) {
-        this.playNext();
+      if (sentences.length <= 1) {
+        return [text]; // Single sentence, don't split
+      }
+
+      const totalLength = text.length;
+      let firstHalfLength = 0;
+      let splitIndex = 0;
+
+      // Find split point closest to middle
+      for (let i = 0; i < sentences.length; i++) {
+        firstHalfLength += sentences[i].length;
+        if (firstHalfLength >= totalLength / 2) {
+          splitIndex = i + 1;
+          break;
+        }
+      }
+
+      // Ensure at least one sentence in each half
+      if (splitIndex === 0) splitIndex = 1;
+      if (splitIndex >= sentences.length) splitIndex = sentences.length - 1;
+
+      const firstHalf = sentences.slice(0, splitIndex).join('').trim();
+      const secondHalf = sentences.slice(splitIndex).join('').trim();
+
+      return [firstHalf, secondHalf].filter(h => h.length > 0);
+    }
+
+    // Fetch audio for text in parallel
+    async fetchAudioParallel(text) {
+      const response = await chrome.runtime.sendMessage({
+        type: 'TTS_REQUEST',
+        data: {
+          text: text,
+          voice: settings.voice,
+          speed: 1.0,
+          pitch: 1.0
+        }
+      });
+
+      if (!response.success || !response.audioUrl) {
+        throw new Error(response.error || 'TTS failed');
+      }
+
+      // Convert to data URL for reliable playback
+      const fetchResponse = await chrome.runtime.sendMessage({
+        type: 'FETCH_AUDIO',
+        url: response.audioUrl
+      });
+
+      if (!fetchResponse.success || !fetchResponse.dataUrl) {
+        throw new Error(fetchResponse.error || 'Failed to fetch audio');
+      }
+
+      return fetchResponse.dataUrl;
+    }
+
+    // Play text using parallel TTS optimization
+    async playText(text) {
+      if (!text || text.length < 5) return;
+
+      // Split into halves
+      const halves = this.splitTextIntoHalves(text);
+      console.log('[AgentVibes Voice] Text split into', halves.length, 'halves');
+
+      if (halves.length === 1) {
+        // Single chunk - play normally
+        await this.playSingleChunk(halves[0]);
       } else {
-        // Preload next chunk if we're already playing
-        this.preloadNext();
+        // Two halves - fetch in parallel
+        await this.playParallelHalves(halves[0], halves[1]);
       }
     }
 
-    async playNext() {
-      if (this.queue.length === 0) {
+    async playSingleChunk(text) {
+      showSpeakingNotification();
+      showStopButton();
+
+      try {
+        const audioData = await this.fetchAudioParallel(text);
+        await this.playAudioData(audioData);
+      } catch (error) {
+        console.error('[AgentVibes Voice] Error playing chunk:', error);
+        throw error;
+      }
+    }
+
+    async playParallelHalves(firstHalf, secondHalf) {
+      this.isPlaying = true;
+      showSpeakingNotification();
+      showStopButton();
+
+      let firstAudioData = null;
+      let secondAudioData = null;
+
+      try {
+        // Fetch both halves in parallel
+        console.log('[AgentVibes Voice] Fetching both halves in parallel...');
+        const [firstResult, secondResult] = await Promise.allSettled([
+          this.fetchAudioParallel(firstHalf),
+          this.fetchAudioParallel(secondHalf)
+        ]);
+
+        if (firstResult.status === 'fulfilled') {
+          firstAudioData = firstResult.value;
+        } else {
+          console.error('[AgentVibes Voice] First half failed:', firstResult.reason);
+          throw firstResult.reason;
+        }
+
+        if (secondResult.status === 'fulfilled') {
+          secondAudioData = secondResult.value;
+        } else {
+          console.error('[AgentVibes Voice] Second half failed (will skip):', secondResult.reason);
+          // Continue with just the first half
+        }
+
+        // Play first half immediately
+        console.log('[AgentVibes Voice] Playing first half...');
+        await this.playAudioData(firstAudioData);
+
+        // If second half was fetched successfully, play it immediately
+        if (secondAudioData) {
+          console.log('[AgentVibes Voice] Playing second half (already preloaded)...');
+          await this.playAudioData(secondAudioData);
+        }
+
+      } catch (error) {
+        console.error('[AgentVibes Voice] Parallel playback error:', error);
+        throw error;
+      } finally {
         this.isPlaying = false;
         hideSpeakingNotification();
         hideStopButton();
-        return;
-      }
-
-      this.isPlaying = true;
-      const chunk = this.queue.shift();
-
-      try {
-        // Preload the next chunk before playing current one
-        if (this.queue.length > 0) {
-          this.preloadNext();
-        }
-
-        await this.playChunk(chunk);
-
-        // Continue with next chunk
-        this.playNext();
-      } catch (error) {
-        console.error('[AgentVibes Voice] Error playing chunk:', error);
-        this.nextAudioData = null;
-        this.nextChunk = null;
-        // Continue with next even if one fails
-        this.playNext();
       }
     }
 
-    async preloadNext() {
-      if (this.queue.length === 0 || this.nextAudioData) return;
+    // Play audio from data URL
+    playAudioData(dataUrl) {
+      return new Promise((resolve, reject) => {
+        const audio = new Audio(dataUrl);
+        audio.volume = settings.volume;
+        this.currentAudio = audio;
+        currentAudio = audio;
 
-      const nextChunk = this.queue[0];
-      if (nextChunk === this.nextChunk) return;
+        audio.onended = () => {
+          this.currentAudio = null;
+          currentAudio = null;
+          resolve();
+        };
 
-      this.nextChunk = nextChunk;
-      console.log('[AgentVibes Voice] Preloading audio for next chunk');
+        audio.onerror = (e) => {
+          console.error('[AgentVibes Voice] Audio playback failed:', e);
+          this.currentAudio = null;
+          currentAudio = null;
+          reject(e);
+        };
 
-      try {
-        const response = await chrome.runtime.sendMessage({
-          type: 'TTS_REQUEST',
-          data: {
-            text: nextChunk,
-            voice: settings.voice,
-            speed: 1.0,
-            pitch: 1.0
-          }
-        });
+        if (audio.readyState >= 2) {
+          audio.play().catch(reject);
+        } else {
+          audio.addEventListener('canplay', () => {
+            audio.play().catch(reject);
+          }, { once: true });
 
-        if (response.success && response.audioUrl) {
-          const fetchResponse = await chrome.runtime.sendMessage({
-            type: 'FETCH_AUDIO',
-            url: response.audioUrl
-          });
-
-          if (fetchResponse.success && fetchResponse.dataUrl) {
-            this.nextAudioData = fetchResponse.dataUrl;
-          }
-        }
-      } catch (error) {
-        console.error('[AgentVibes Voice] Preload error:', error);
-        this.nextAudioData = null;
-      }
-    }
-
-    async playChunk(chunk) {
-      return new Promise(async (resolve, reject) => {
-        try {
-          showSpeakingNotification();
-          showStopButton();
-
-          let audio;
-
-          // Use preloaded audio if available
-          if (this.nextChunk === chunk && this.nextAudioData) {
-            audio = new Audio(this.nextAudioData);
-            audio.volume = settings.volume;
-            this.nextAudioData = null;
-            this.nextChunk = null;
-          } else {
-            // Fetch audio normally
-            const response = await chrome.runtime.sendMessage({
-              type: 'TTS_REQUEST',
-              data: {
-                text: chunk,
-                voice: settings.voice,
-                speed: 1.0,
-                pitch: 1.0
-              }
-            });
-
-            if (!response.success || !response.audioUrl) {
-              throw new Error(response.error || 'TTS failed');
-            }
-
-            const fetchResponse = await chrome.runtime.sendMessage({
-              type: 'FETCH_AUDIO',
-              url: response.audioUrl
-            });
-
-            if (!fetchResponse.success || !fetchResponse.dataUrl) {
-              throw new Error(fetchResponse.error || 'Failed to fetch audio');
-            }
-
-            audio = new Audio(fetchResponse.dataUrl);
-            audio.volume = settings.volume;
-          }
-
-          this.currentAudio = audio;
-          currentAudio = audio;
-
-          audio.onended = () => {
-            this.currentAudio = null;
-            currentAudio = null;
-            resolve();
-          };
-
-          audio.onerror = (e) => {
-            console.error('[AgentVibes Voice] Audio playback failed:', e);
-            this.currentAudio = null;
-            currentAudio = null;
+          audio.addEventListener('error', (e) => {
             reject(e);
-          };
-
-          if (audio.readyState >= 2) {
-            await audio.play();
-          } else {
-            audio.addEventListener('canplay', async () => {
-              await audio.play();
-            }, { once: true });
-          }
-        } catch (error) {
-          console.error('[AgentVibes Voice] TTS error for chunk:', error);
-          reject(error);
+          }, { once: true });
         }
       });
     }
 
-    clear() {
-      this.queue = [];
+    stop() {
       if (this.currentAudio) {
         this.currentAudio.pause();
         this.currentAudio = null;
+        currentAudio = null;
       }
-      this.nextAudioData = null;
-      this.nextChunk = null;
       this.isPlaying = false;
+      this.preloadedAudio = null;
     }
 
     isActive() {
-      return this.isPlaying || this.queue.length > 0;
+      return this.isPlaying || (this.currentAudio && !this.currentAudio.paused);
     }
   }
 
-  const audioPlayer = new AudioPlayer();
+  const audioPlayer = new ParallelAudioPlayer();
 
   // ============================================
   // Utility Functions
@@ -319,61 +345,6 @@ console.log('[AgentVibes Voice] Content script injected on:', window.location.hr
     if (element.querySelector('.cursor, [class*="blink"], [class*="cursor"]')) return true;
 
     return false;
-  }
-
-  // ============================================
-  // Text Chunking - Split into 2-3 sentence chunks
-  // ============================================
-
-  function splitIntoChunks(text) {
-    // Split text into sentences
-    // Match sentences ending with . ! ? followed by space or end
-    const sentenceRegex = /[^.!?]+[.!?]+(?:\s|$)|[^.!?]+$/g;
-    const sentences = (text.match(sentenceRegex) || [])
-      .map(s => s.trim())
-      .filter(s => s.length >= 10);
-
-    if (sentences.length === 0) return [text];
-
-    const chunks = [];
-    let currentChunk = [];
-
-    for (let i = 0; i < sentences.length; i++) {
-      currentChunk.push(sentences[i]);
-
-      // Create chunk every 2-3 sentences
-      if (currentChunk.length >= 3 || i === sentences.length - 1) {
-        chunks.push(currentChunk.join(' '));
-        currentChunk = [];
-      } else if (currentChunk.length === 2 && i < sentences.length - 1) {
-        // Check if next sentence is very short - if so, include it for better flow
-        const nextSentence = sentences[i + 1];
-        if (nextSentence && nextSentence.length < 50) {
-          // Wait for the third sentence
-          continue;
-        } else {
-          chunks.push(currentChunk.join(' '));
-          currentChunk = [];
-        }
-      }
-    }
-
-    // Add any remaining sentences
-    if (currentChunk.length > 0) {
-      if (chunks.length > 0) {
-        // Append to last chunk if it's small
-        const lastChunk = chunks[chunks.length - 1];
-        if (lastChunk.length < 150) {
-          chunks[chunks.length - 1] = lastChunk + ' ' + currentChunk.join(' ');
-        } else {
-          chunks.push(currentChunk.join(' '));
-        }
-      } else {
-        chunks.push(currentChunk.join(' '));
-      }
-    }
-
-    return chunks.filter(chunk => chunk.length >= 10);
   }
 
   // ============================================
@@ -482,14 +453,14 @@ console.log('[AgentVibes Voice] Content script injected on:', window.location.hr
     spokenMessages.add(textHash);
     element.dataset.agentvibesSpoken = textHash;
 
-    // Split into chunks
-    const chunks = splitIntoChunks(text);
-    console.log('[AgentVibes Voice] Split into', chunks.length, 'chunks');
+    console.log('[AgentVibes Voice] Processing complete message, length:', text.length);
 
     // Auto-speak if enabled
     if (settings.autoSpeak && settings.enabled) {
-      console.log('[AgentVibes Voice] Starting playback of', chunks.length, 'chunks');
-      audioPlayer.playChunks(chunks);
+      console.log('[AgentVibes Voice] Starting parallel TTS playback');
+      audioPlayer.playText(text).catch(error => {
+        console.error('[AgentVibes Voice] Playback failed:', error);
+      });
     }
   }
 
@@ -504,8 +475,8 @@ console.log('[AgentVibes Voice] Content script injected on:', window.location.hr
     }
     monitoredMessages.clear();
 
-    // Clear audio player
-    audioPlayer.clear();
+    // Stop audio player
+    audioPlayer.stop();
 
     // Stop current audio
     if (currentAudio) {
@@ -587,11 +558,12 @@ console.log('[AgentVibes Voice] Content script injected on:', window.location.hr
       const currentText = extractCleanText(textElement, platform);
 
       // Stop any current playback
-      audioPlayer.clear();
+      audioPlayer.stop();
 
-      // Split and play
-      const chunks = splitIntoChunks(currentText);
-      audioPlayer.playChunks(chunks);
+      // Play with parallel TTS
+      audioPlayer.playText(currentText).catch(error => {
+        console.error('[AgentVibes Voice] Replay failed:', error);
+      });
 
       // Visual feedback
       icon.style.color = '#10b981';
@@ -601,44 +573,6 @@ console.log('[AgentVibes Voice] Content script injected on:', window.location.hr
     });
 
     messageElement.appendChild(icon);
-  }
-
-  // ============================================
-  // Text-to-Speech Functions (for non-streaming messages)
-  // ============================================
-
-  async function speakText(text, options = {}) {
-    if (!text || text.length < 5) return;
-    if (!settings.enabled && !options.isReplay) return;
-
-    // Check cooldown
-    const now = Date.now();
-    if (!options.isReplay && (now - lastSpeakTime) < SPEAK_COOLDOWN) {
-      console.log('[AgentVibes Voice] Speak cooldown active, skipping');
-      return;
-    }
-
-    const textHash = hashMessage(text);
-
-    // Skip if already spoken (unless manual replay)
-    if (!options.isReplay && spokenMessages.has(textHash)) {
-      console.log('[AgentVibes Voice] Skipping already spoken message');
-      return;
-    }
-
-    // Update last speak time and mark as spoken
-    lastSpeakTime = now;
-    spokenMessages.add(textHash);
-
-    // Stop any current audio
-    if (currentAudio) {
-      currentAudio.pause();
-      currentAudio = null;
-    }
-
-    // Split into chunks and play
-    const chunks = splitIntoChunks(text);
-    audioPlayer.playChunks(chunks);
   }
 
   // ============================================
@@ -885,8 +819,9 @@ console.log('[AgentVibes Voice] Content script injected on:', window.location.hr
     addSpeakerIconToMessage(element, text, 'GENERIC');
 
     if (settings.autoSpeak && settings.enabled) {
-      const chunks = splitIntoChunks(text);
-      audioPlayer.playChunks(chunks);
+      audioPlayer.playText(text).catch(error => {
+        console.error('[AgentVibes Voice] Generic message playback failed:', error);
+      });
     }
   }
 
@@ -1090,14 +1025,14 @@ console.log('[AgentVibes Voice] Content script injected on:', window.location.hr
       const newVoice = request.voice;
       console.log('[AgentVibes Voice] Voice changed to:', newVoice);
       settings.voice = newVoice;
-      
+
       // Persist the voice change to storage
       chrome.storage.local.set({ voice: newVoice }).then(() => {
         console.log('[AgentVibes Voice] Voice setting saved to storage');
       }).catch(err => {
         console.error('[AgentVibes Voice] Failed to save voice setting:', err);
       });
-      
+
       // Acknowledge the message
       if (sendResponse) {
         sendResponse({ success: true, voice: newVoice });
@@ -1120,7 +1055,7 @@ console.log('[AgentVibes Voice] Content script injected on:', window.location.hr
   function init() {
     currentPlatform = detectPlatform();
     console.log(`[AgentVibes Voice] Detected platform: ${currentPlatform}`);
-    console.log('[AgentVibes Voice] Simplified "wait then speak" mode active');
+    console.log('[AgentVibes Voice] Parallel TTS optimization active');
 
     loadSettings().then(() => {
       console.log('[AgentVibes Voice] Waiting 3 seconds before activating observer...');
