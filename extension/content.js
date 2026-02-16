@@ -72,6 +72,38 @@ console.log('[AgentVibes Voice] Content script injected on:', window.location.hr
   // Browser TTS (Fast Mode) Implementation
   // ============================================
 
+  // Async function to get voices with proper loading handling
+  function getBrowserVoicesAsync() {
+    return new Promise((resolve) => {
+      if (!window.speechSynthesis) {
+        console.error('[AgentVibes Voice] speechSynthesis not available');
+        resolve([]);
+        return;
+      }
+
+      let voices = window.speechSynthesis.getVoices();
+      if (voices.length > 0) {
+        resolve(voices);
+        return;
+      }
+
+      // Voices not loaded yet, wait for voiceschanged event
+      const timeoutId = setTimeout(() => {
+        // Fallback: resolve with whatever voices are available after 3 seconds
+        voices = window.speechSynthesis.getVoices();
+        console.log('[AgentVibes Voice] Voice loading timeout, returning', voices.length, 'voices');
+        resolve(voices);
+      }, 3000);
+
+      window.speechSynthesis.onvoiceschanged = () => {
+        clearTimeout(timeoutId);
+        voices = window.speechSynthesis.getVoices();
+        console.log('[AgentVibes Voice] Voices loaded via event:', voices.length, 'voices');
+        resolve(voices);
+      };
+    });
+  }
+
   function loadBrowserVoices() {
     if (!window.speechSynthesis) {
       console.error('[AgentVibes Voice] speechSynthesis not available');
@@ -1285,20 +1317,48 @@ console.log('[AgentVibes Voice] Content script injected on:', window.location.hr
       }
     }
     if (request.type === 'GET_BROWSER_VOICES') {
-      // Return available browser voices
-      if (!browserVoices.length) {
-        browserVoices = loadBrowserVoices();
-      }
-      if (sendResponse) {
-        sendResponse({
-          success: true,
-          voices: browserVoices.map(v => ({
-            name: v.name,
-            lang: v.lang,
-            default: v.default
-          }))
+      // Return available browser voices (async to handle initial loading)
+      getBrowserVoicesAsync().then(voices => {
+        // Update the cache and sort
+        browserVoices = voices;
+        browserVoices.sort((a, b) => {
+          const aIsNeural = a.name.toLowerCase().includes('neural') ||
+                            a.name.toLowerCase().includes('natural') ||
+                            a.name.toLowerCase().includes('premium') ||
+                            a.name.toLowerCase().includes('enhanced');
+          const bIsNeural = b.name.toLowerCase().includes('neural') ||
+                            b.name.toLowerCase().includes('natural') ||
+                            b.name.toLowerCase().includes('premium') ||
+                            b.name.toLowerCase().includes('enhanced');
+          if (aIsNeural && !bIsNeural) return -1;
+          if (!aIsNeural && bIsNeural) return 1;
+          const aIsEnglish = a.lang.toLowerCase().startsWith('en');
+          const bIsEnglish = b.lang.toLowerCase().startsWith('en');
+          if (aIsEnglish && !bIsEnglish) return -1;
+          if (!aIsEnglish && bIsEnglish) return 1;
+          return 0;
         });
-      }
+
+        if (sendResponse) {
+          sendResponse({
+            success: true,
+            voices: browserVoices.map(v => ({
+              name: v.name,
+              lang: v.lang,
+              default: v.default
+            }))
+          });
+        }
+      }).catch(err => {
+        console.error('[AgentVibes Voice] Error getting browser voices:', err);
+        if (sendResponse) {
+          sendResponse({
+            success: false,
+            voices: [],
+            error: err.message
+          });
+        }
+      });
       return true;
     }
 
