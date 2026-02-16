@@ -14,8 +14,8 @@
     "*://www.claude.ai/*",
     "*://chat.openai.com/*",
     "*://www.chat.openai.com/*",
-    "http://localhost:*/*",
-    "https://localhost:*/*"
+    "http://localhost/*",
+    "https://localhost/*"
   ],
   "content_scripts": [
     {
