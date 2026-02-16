@@ -1,11 +1,8 @@
 console.log('[AgentVibes Voice] Content script injected on:', window.location.href);
 
-// AgentVibes Voice - Content Script (Parallel TTS Optimization)
-// When a message is fully complete:
-// 1. Split text into two roughly equal halves at the nearest sentence boundary (unless under 100 chars)
-// 2. Send both halves to TTS server in parallel
-// 3. Play first half immediately when audio is ready
-// 4. Second half plays immediately after first finishes (already preloaded)
+// AgentVibes Voice - Content Script (Browser TTS Fast Mode + Server TTS)
+// Fast Mode: Uses window.speechSynthesis directly - no server latency
+// Server Mode: Uses parallel TTS optimization with localhost server
 
 (function() {
   'use strict';
@@ -42,7 +39,7 @@ console.log('[AgentVibes Voice] Content script injected on:', window.location.hr
   };
 
   let currentPlatform = null;
-  let settings = { enabled: true, volume: 1.0, voice: null, autoSpeak: true };
+  let settings = { enabled: true, volume: 1.0, voice: null, autoSpeak: true, fastMode: true };
   let spokenMessages = new Set();
   let currentAudio = null;
   let stopButton = null;
@@ -51,48 +48,243 @@ console.log('[AgentVibes Voice] Content script injected on:', window.location.hr
   let isPageReady = false;
   let lastSpeakTime = 0;
 
+  // Browser TTS state
+  let browserVoices = [];
+  let browserTTSQueue = [];
+  let isSpeakingBrowserTTS = false;
+
   const SPEAK_COOLDOWN = 5000;
   const INITIAL_LOAD_GRACE = 5000;
   const MIN_TEXT_LENGTH = 50;
-  const PARALLEL_SPLIT_THRESHOLD = 100; // Don't split messages under 100 chars
+  const PARALLEL_SPLIT_THRESHOLD = 100;
   const OBSERVER_DELAY = 3000;
   const DEBOUNCE_DELAY = 500;
   const STREAMING_CHECK_INTERVAL = 500;
   const STREAMING_STABLE_THRESHOLD = 2000;
 
   // Track messages being monitored for completion
-  const monitoredMessages = new Map(); // messageId -> { element, lastText, lastChangeTime, isComplete }
+  const monitoredMessages = new Map();
+
+  // Track sentences spoken in streaming mode (for fast mode)
+  const spokenSentences = new Set();
 
   // ============================================
-  // Parallel Audio Player with Dual Preloading
+  // Browser TTS (Fast Mode) Implementation
+  // ============================================
+
+  function loadBrowserVoices() {
+    if (!window.speechSynthesis) {
+      console.error('[AgentVibes Voice] speechSynthesis not available');
+      return [];
+    }
+
+    browserVoices = window.speechSynthesis.getVoices();
+    
+    // Sort voices by quality (prefer Neural/Natural voices)
+    browserVoices.sort((a, b) => {
+      const aIsNeural = a.name.toLowerCase().includes('neural') || 
+                        a.name.toLowerCase().includes('natural') ||
+                        a.name.toLowerCase().includes('premium') ||
+                        a.name.toLowerCase().includes('enhanced');
+      const bIsNeural = b.name.toLowerCase().includes('neural') || 
+                        b.name.toLowerCase().includes('natural') ||
+                        b.name.toLowerCase().includes('premium') ||
+                        b.name.toLowerCase().includes('enhanced');
+      
+      // Prefer neural voices
+      if (aIsNeural && !bIsNeural) return -1;
+      if (!aIsNeural && bIsNeural) return 1;
+      
+      // Then sort by language (prefer English voices)
+      const aIsEnglish = a.lang.toLowerCase().startsWith('en');
+      const bIsEnglish = b.lang.toLowerCase().startsWith('en');
+      
+      if (aIsEnglish && !bIsEnglish) return -1;
+      if (!aIsEnglish && bIsEnglish) return 1;
+      
+      return 0;
+    });
+
+    console.log('[AgentVibes Voice] Loaded', browserVoices.length, 'browser TTS voices');
+    return browserVoices;
+  }
+
+  // Load voices when they're available
+  if (window.speechSynthesis) {
+    // Chrome loads voices asynchronously
+    if (window.speechSynthesis.onvoiceschanged !== undefined) {
+      window.speechSynthesis.onvoiceschanged = loadBrowserVoices;
+    }
+    // Try loading immediately in case they're already available
+    loadBrowserVoices();
+  }
+
+  function getBrowserVoice(voiceName) {
+    if (!browserVoices.length) {
+      browserVoices = loadBrowserVoices();
+    }
+
+    if (!voiceName || voiceName === '') {
+      // Return default voice (first one, likely system default)
+      return browserVoices[0] || null;
+    }
+
+    // Try exact match
+    let voice = browserVoices.find(v => v.name === voiceName);
+    
+    // Try case-insensitive match
+    if (!voice) {
+      voice = browserVoices.find(v => 
+        v.name.toLowerCase() === voiceName.toLowerCase()
+      );
+    }
+
+    // Try partial match
+    if (!voice) {
+      voice = browserVoices.find(v => 
+        v.name.toLowerCase().includes(voiceName.toLowerCase())
+      );
+    }
+
+    return voice || browserVoices[0] || null;
+  }
+
+  function speakWithBrowserTTS(text, voiceName) {
+    return new Promise((resolve, reject) => {
+      if (!window.speechSynthesis) {
+        reject(new Error('speechSynthesis not available'));
+        return;
+      }
+
+      const utterance = new SpeechSynthesisUtterance(text);
+      const voice = getBrowserVoice(voiceName);
+
+      if (voice) {
+        utterance.voice = voice;
+        utterance.lang = voice.lang;
+      }
+
+      utterance.volume = settings.volume;
+      utterance.rate = 1.0;
+      utterance.pitch = 1.0;
+
+      utterance.onstart = () => {
+        console.log('[AgentVibes Voice] Browser TTS started:', text.substring(0, 50) + '...');
+        showSpeakingNotification();
+        showStopButton();
+        isSpeakingBrowserTTS = true;
+      };
+
+      utterance.onend = () => {
+        console.log('[AgentVibes Voice] Browser TTS ended');
+        isSpeakingBrowserTTS = false;
+        resolve();
+      };
+
+      utterance.onerror = (event) => {
+        console.error('[AgentVibes Voice] Browser TTS error:', event.error);
+        isSpeakingBrowserTTS = false;
+        reject(new Error(event.error));
+      };
+
+      // speechSynthesis has built-in queue - just call speak()
+      window.speechSynthesis.speak(utterance);
+    });
+  }
+
+  function stopBrowserTTS() {
+    if (window.speechSynthesis) {
+      window.speechSynthesis.cancel();
+      isSpeakingBrowserTTS = false;
+    }
+  }
+
+  // ============================================
+  // Sentence Streaming for Fast Mode
+  // ============================================
+
+  function splitIntoSentences(text) {
+    // Match sentences ending with . ! ? followed by space or end of string
+    const sentenceRegex = /[^.!?]+[.!?]+(?:\s|$)/g;
+    const matches = text.match(sentenceRegex) || [];
+    
+    // Clean up and filter
+    return matches
+      .map(s => s.trim())
+      .filter(s => s.length > 0);
+  }
+
+  function getSentenceHash(sentence) {
+    // Simple hash for sentence deduplication
+    return hashMessage(sentence.trim().toLowerCase());
+  }
+
+  function speakSentencesStreaming(text, voiceName) {
+    const sentences = splitIntoSentences(text);
+    
+    if (sentences.length === 0) {
+      // No proper sentences found, speak the whole text
+      speakWithBrowserTTS(text, voiceName).catch(err => {
+        console.error('[AgentVibes Voice] Browser TTS error:', err);
+      });
+      return;
+    }
+
+    // Queue each new sentence
+    sentences.forEach(sentence => {
+      const sentenceHash = getSentenceHash(sentence);
+      
+      // Skip if we've already spoken this sentence
+      if (spokenSentences.has(sentenceHash)) {
+        return;
+      }
+      
+      // Mark as spoken
+      spokenSentences.add(sentenceHash);
+      
+      // Speak immediately - speechSynthesis queues automatically
+      speakWithBrowserTTS(sentence, voiceName).catch(err => {
+        console.error('[AgentVibes Voice] Browser TTS sentence error:', err);
+      });
+    });
+
+    // Clean up old sentence hashes periodically (keep last 1000)
+    if (spokenSentences.size > 1000) {
+      const iterator = spokenSentences.values();
+      for (let i = 0; i < 100; i++) {
+        const value = iterator.next().value;
+        spokenSentences.delete(value);
+      }
+    }
+  }
+
+  // ============================================
+  // Server TTS (Parallel Audio Player) - For non-Fast Mode
   // ============================================
 
   class ParallelAudioPlayer {
     constructor() {
       this.isPlaying = false;
       this.currentAudio = null;
-      this.preloadedAudio = null; // For second half
+      this.preloadedAudio = null;
     }
 
-    // Split text into two roughly equal halves at sentence boundary
     splitTextIntoHalves(text) {
       if (text.length < PARALLEL_SPLIT_THRESHOLD) {
-        return [text]; // Don't split short messages
+        return [text];
       }
 
-      // Find sentence boundaries
       const sentenceRegex = /[^.!?]+[.!?]+(?:\s|$)/g;
       const sentences = text.match(sentenceRegex) || [text];
 
       if (sentences.length <= 1) {
-        return [text]; // Single sentence, don't split
+        return [text];
       }
 
       const totalLength = text.length;
       let firstHalfLength = 0;
       let splitIndex = 0;
 
-      // Find split point closest to middle
       for (let i = 0; i < sentences.length; i++) {
         firstHalfLength += sentences[i].length;
         if (firstHalfLength >= totalLength / 2) {
@@ -101,7 +293,6 @@ console.log('[AgentVibes Voice] Content script injected on:', window.location.hr
         }
       }
 
-      // Ensure at least one sentence in each half
       if (splitIndex === 0) splitIndex = 1;
       if (splitIndex >= sentences.length) splitIndex = sentences.length - 1;
 
@@ -111,7 +302,6 @@ console.log('[AgentVibes Voice] Content script injected on:', window.location.hr
       return [firstHalf, secondHalf].filter(h => h.length > 0);
     }
 
-    // Fetch audio for text in parallel
     async fetchAudioParallel(text) {
       const response = await chrome.runtime.sendMessage({
         type: 'TTS_REQUEST',
@@ -127,7 +317,6 @@ console.log('[AgentVibes Voice] Content script injected on:', window.location.hr
         throw new Error(response.error || 'TTS failed');
       }
 
-      // Convert to data URL for reliable playback
       const fetchResponse = await chrome.runtime.sendMessage({
         type: 'FETCH_AUDIO',
         url: response.audioUrl
@@ -140,19 +329,15 @@ console.log('[AgentVibes Voice] Content script injected on:', window.location.hr
       return fetchResponse.dataUrl;
     }
 
-    // Play text using parallel TTS optimization
     async playText(text) {
       if (!text || text.length < 5) return;
 
-      // Split into halves
       const halves = this.splitTextIntoHalves(text);
       console.log('[AgentVibes Voice] Text split into', halves.length, 'halves');
 
       if (halves.length === 1) {
-        // Single chunk - play normally
         await this.playSingleChunk(halves[0]);
       } else {
-        // Two halves - fetch in parallel
         await this.playParallelHalves(halves[0], halves[1]);
       }
     }
@@ -179,7 +364,6 @@ console.log('[AgentVibes Voice] Content script injected on:', window.location.hr
       let secondAudioData = null;
 
       try {
-        // Fetch both halves in parallel
         console.log('[AgentVibes Voice] Fetching both halves in parallel...');
         const [firstResult, secondResult] = await Promise.allSettled([
           this.fetchAudioParallel(firstHalf),
@@ -197,14 +381,11 @@ console.log('[AgentVibes Voice] Content script injected on:', window.location.hr
           secondAudioData = secondResult.value;
         } else {
           console.error('[AgentVibes Voice] Second half failed (will skip):', secondResult.reason);
-          // Continue with just the first half
         }
 
-        // Play first half immediately
         console.log('[AgentVibes Voice] Playing first half...');
         await this.playAudioData(firstAudioData);
 
-        // If second half was fetched successfully, play it immediately
         if (secondAudioData) {
           console.log('[AgentVibes Voice] Playing second half (already preloaded)...');
           await this.playAudioData(secondAudioData);
@@ -220,7 +401,6 @@ console.log('[AgentVibes Voice] Content script injected on:', window.location.hr
       }
     }
 
-    // Play audio from data URL
     playAudioData(dataUrl) {
       return new Promise((resolve, reject) => {
         const audio = new Audio(dataUrl);
@@ -273,6 +453,51 @@ console.log('[AgentVibes Voice] Content script injected on:', window.location.hr
   const audioPlayer = new ParallelAudioPlayer();
 
   // ============================================
+  // Unified Play Function (Fast Mode or Server)
+  // ============================================
+
+  function playText(text, options = {}) {
+    if (!settings.enabled) return;
+
+    if (settings.fastMode) {
+      // Fast Mode: Use browser TTS with sentence streaming
+      speakSentencesStreaming(text, settings.voice);
+    } else {
+      // Server Mode: Use parallel audio player
+      audioPlayer.playText(text).catch(error => {
+        console.error('[AgentVibes Voice] Server TTS playback failed:', error);
+      });
+    }
+  }
+
+  function stopAllPlayback() {
+    console.log('[AgentVibes Voice] Stopping all playback...');
+
+    // Stop all monitoring intervals
+    for (const [messageId, state] of monitoredMessages) {
+      if (state.checkInterval) {
+        clearInterval(state.checkInterval);
+      }
+    }
+    monitoredMessages.clear();
+
+    // Stop server TTS (audio player)
+    audioPlayer.stop();
+
+    // Stop current audio
+    if (currentAudio) {
+      currentAudio.pause();
+      currentAudio = null;
+    }
+
+    // Stop browser TTS
+    stopBrowserTTS();
+
+    hideSpeakingNotification();
+    hideStopButton();
+  }
+
+  // ============================================
   // Utility Functions
   // ============================================
 
@@ -299,18 +524,14 @@ console.log('[AgentVibes Voice] Content script injected on:', window.location.hr
 
     const clone = element.cloneNode(true);
 
-    // Remove code blocks
     const codeBlocks = clone.querySelectorAll('pre, code, .code-block, [class*="code"]');
     codeBlocks.forEach(block => block.remove());
 
-    // Remove hidden elements
     const hidden = clone.querySelectorAll('[hidden], .sr-only, .visually-hidden');
     hidden.forEach(el => el.remove());
 
-    // Get text content
     let text = clone.textContent || '';
 
-    // Clean up whitespace
     text = text
       .replace(/\s+/g, ' ')
       .replace(/\n\s*\n/g, '\n')
@@ -319,29 +540,24 @@ console.log('[AgentVibes Voice] Content script injected on:', window.location.hr
     return text;
   }
 
-  // Check if message is currently streaming
   function isMessageStreaming(element, platform) {
     if (!element) return false;
 
     const config = PLATFORMS[platform];
     if (!config) return false;
 
-    // Check streaming attribute
     if (config.streamingAttribute) {
       const streaming = element.getAttribute(config.streamingAttribute);
       if (streaming === 'true') return true;
     }
 
-    // Check for streaming class/selector
     if (config.streamingSelector) {
       if (element.querySelector(config.streamingSelector)) return true;
     }
 
-    // Check for result-streaming (ChatGPT specific)
     if (element.classList.contains('result-streaming')) return true;
     if (element.querySelector('.result-streaming')) return true;
 
-    // Check if text is still being typed (has cursor/blinking element)
     if (element.querySelector('.cursor, [class*="blink"], [class*="cursor"]')) return true;
 
     return false;
@@ -352,7 +568,6 @@ console.log('[AgentVibes Voice] Content script injected on:', window.location.hr
   // ============================================
 
   function startMonitoringMessage(messageElement, platform, messageId) {
-    // Skip if already being monitored
     if (monitoredMessages.has(messageId)) return;
 
     const config = PLATFORMS[platform];
@@ -363,10 +578,8 @@ console.log('[AgentVibes Voice] Content script injected on:', window.location.hr
 
     const initialText = extractCleanText(textElement, platform);
 
-    // Skip if too short
     if (initialText.length < MIN_TEXT_LENGTH) return;
 
-    // Mark as being monitored
     messageElement.setAttribute('data-agentvibes-monitoring', 'true');
 
     const monitorState = {
@@ -376,22 +589,107 @@ console.log('[AgentVibes Voice] Content script injected on:', window.location.hr
       lastChangeTime: Date.now(),
       isComplete: false,
       platform: platform,
-      checkInterval: null
+      checkInterval: null,
+      // For Fast Mode: track what we've already spoken
+      lastSpokenTextLength: 0
     };
 
     monitoredMessages.set(messageId, monitorState);
 
     console.log('[AgentVibes Voice] Started monitoring message:', messageId, 'Initial length:', initialText.length);
 
-    // Start checking for completion
+    // For Fast Mode: speak sentences as they complete during streaming
     monitorState.checkInterval = setInterval(() => {
-      checkMessageCompletion(messageId);
+      if (settings.fastMode) {
+        checkMessageStreamingForFastMode(messageId);
+      } else {
+        checkMessageCompletion(messageId);
+      }
     }, STREAMING_CHECK_INTERVAL);
 
-    // Add speaker icon
     addSpeakerIconToMessage(messageElement, initialText, platform);
   }
 
+  // Fast Mode: Speak sentences as they appear during streaming
+  function checkMessageStreamingForFastMode(messageId) {
+    const state = monitoredMessages.get(messageId);
+    if (!state) return;
+
+    const { textElement, element, platform, lastText, lastChangeTime, lastSpokenTextLength, isComplete } = state;
+
+    if (isComplete) return;
+
+    const currentText = extractCleanText(textElement, platform);
+    const now = Date.now();
+
+    // Update last change time if text changed
+    if (currentText !== lastText) {
+      state.lastText = currentText;
+      state.lastChangeTime = now;
+    }
+
+    // Get only the new text since last spoken
+    const newText = currentText.substring(lastSpokenTextLength);
+    
+    if (newText.length > 0) {
+      // Check for complete sentences in the new text
+      const sentences = splitIntoSentences(newText);
+      
+      sentences.forEach(sentence => {
+        // Only speak if sentence ends with proper punctuation and has some length
+        if (sentence.match(/[.!?]\s*$/)) {
+          const sentenceHash = getSentenceHash(sentence);
+          
+          if (!spokenSentences.has(sentenceHash)) {
+            console.log('[AgentVibes Voice] Fast Mode: Speaking sentence:', sentence.substring(0, 50) + '...');
+            spokenSentences.add(sentenceHash);
+            
+            // Speak immediately
+            speakWithBrowserTTS(sentence, settings.voice).catch(err => {
+              console.error('[AgentVibes Voice] Fast Mode TTS error:', err);
+            });
+          }
+        }
+      });
+      
+      // Update last spoken position
+      state.lastSpokenTextLength = currentText.length;
+    }
+
+    // Check if streaming has stopped completely
+    const isStreaming = isMessageStreaming(element, platform);
+    const timeSinceChange = now - lastChangeTime;
+    
+    if (!isStreaming && timeSinceChange >= STREAMING_STABLE_THRESHOLD) {
+      // Message is complete
+      state.isComplete = true;
+      clearInterval(state.checkInterval);
+
+      // Speak any remaining text that didn't end with a sentence
+      const remainingText = currentText.substring(state.lastSpokenTextLength).trim();
+      if (remainingText.length > 0 && !remainingText.match(/[.!?]\s*$/)) {
+        console.log('[AgentVibes Voice] Fast Mode: Speaking remaining text:', remainingText.substring(0, 50) + '...');
+        speakWithBrowserTTS(remainingText, settings.voice).catch(err => {
+          console.error('[AgentVibes Voice] Fast Mode remaining TTS error:', err);
+        });
+      }
+
+      element.setAttribute('data-agentvibes-monitoring', 'complete');
+      element.dataset.agentvibesComplete = 'true';
+
+      // Mark as spoken
+      const textHash = hashMessage(currentText);
+      spokenMessages.add(textHash);
+      element.dataset.agentvibesSpoken = textHash;
+
+      // Clean up after a delay
+      setTimeout(() => {
+        monitoredMessages.delete(messageId);
+      }, 5000);
+    }
+  }
+
+  // Server Mode: Wait for full message completion then speak
   function checkMessageCompletion(messageId) {
     const state = monitoredMessages.get(messageId);
     if (!state) return;
@@ -403,38 +701,27 @@ console.log('[AgentVibes Voice] Content script injected on:', window.location.hr
     const currentText = extractCleanText(textElement, platform);
     const now = Date.now();
 
-    // Check if text has changed
     if (currentText !== lastText) {
       state.lastText = currentText;
       state.lastChangeTime = now;
-      console.log('[AgentVibes Voice] Message text changed, length:', currentText.length);
       return;
     }
 
-    // Check if streaming has stopped (text stable for threshold time)
     const timeSinceChange = now - lastChangeTime;
     const isStreaming = isMessageStreaming(element, platform);
-
-    // Message is complete if:
-    // 1. Streaming attribute shows false, OR
-    // 2. Text hasn't changed for STREAMING_STABLE_THRESHOLD (2 seconds)
     const isCompleteNow = !isStreaming && timeSinceChange >= STREAMING_STABLE_THRESHOLD;
 
     if (isCompleteNow && currentText.length >= MIN_TEXT_LENGTH) {
-      // Message is complete!
       state.isComplete = true;
       clearInterval(state.checkInterval);
 
-      console.log('[AgentVibes Voice] Message complete! Length:', currentText.length, 'Time stable:', timeSinceChange + 'ms');
+      console.log('[AgentVibes Voice] Message complete! Length:', currentText.length);
 
-      // Mark as complete
       element.setAttribute('data-agentvibes-monitoring', 'complete');
       element.dataset.agentvibesComplete = 'true';
 
-      // Process the complete message
       processCompleteMessage(element, currentText, platform, messageId);
 
-      // Clean up after a delay
       setTimeout(() => {
         monitoredMessages.delete(messageId);
       }, 5000);
@@ -442,50 +729,21 @@ console.log('[AgentVibes Voice] Content script injected on:', window.location.hr
   }
 
   function processCompleteMessage(element, text, platform, messageId) {
-    // Skip if already spoken
     const textHash = hashMessage(text);
     if (spokenMessages.has(textHash)) {
       console.log('[AgentVibes Voice] Message already spoken, skipping');
       return;
     }
 
-    // Mark as spoken
     spokenMessages.add(textHash);
     element.dataset.agentvibesSpoken = textHash;
 
     console.log('[AgentVibes Voice] Processing complete message, length:', text.length);
 
-    // Auto-speak if enabled
     if (settings.autoSpeak && settings.enabled) {
-      console.log('[AgentVibes Voice] Starting parallel TTS playback');
-      audioPlayer.playText(text).catch(error => {
-        console.error('[AgentVibes Voice] Playback failed:', error);
-      });
+      console.log('[AgentVibes Voice] Starting TTS playback');
+      playText(text);
     }
-  }
-
-  function stopAllPlayback() {
-    console.log('[AgentVibes Voice] Stopping all playback...');
-
-    // Stop all monitoring intervals
-    for (const [messageId, state] of monitoredMessages) {
-      if (state.checkInterval) {
-        clearInterval(state.checkInterval);
-      }
-    }
-    monitoredMessages.clear();
-
-    // Stop audio player
-    audioPlayer.stop();
-
-    // Stop current audio
-    if (currentAudio) {
-      currentAudio.pause();
-      currentAudio = null;
-    }
-
-    hideSpeakingNotification();
-    hideStopButton();
   }
 
   // ============================================
@@ -507,12 +765,10 @@ console.log('[AgentVibes Voice] Content script injected on:', window.location.hr
   }
 
   function addSpeakerIconToMessage(messageElement, text, platform) {
-    // Check if icon already exists
     if (messageElement.querySelector('.agentvibes-speaker-icon')) return;
 
     const icon = createSpeakerIcon();
 
-    // Position based on platform
     const baseStyles = `
       position: absolute;
       bottom: 8px;
@@ -533,7 +789,6 @@ console.log('[AgentVibes Voice] Content script injected on:', window.location.hr
     messageElement.style.position = 'relative';
     icon.style.cssText = baseStyles;
 
-    // Hover effects
     icon.addEventListener('mouseenter', () => {
       icon.style.background = 'rgba(99, 102, 241, 0.2)';
       icon.style.transform = 'scale(1.1)';
@@ -544,12 +799,10 @@ console.log('[AgentVibes Voice] Content script injected on:', window.location.hr
       icon.style.transform = 'scale(1)';
     });
 
-    // Click handler - replay the complete message
     icon.addEventListener('click', (e) => {
       e.preventDefault();
       e.stopPropagation();
 
-      // Get current text
       const config = PLATFORMS[platform];
       let textElement = messageElement;
       if (config && config.textSelector) {
@@ -557,15 +810,11 @@ console.log('[AgentVibes Voice] Content script injected on:', window.location.hr
       }
       const currentText = extractCleanText(textElement, platform);
 
-      // Stop any current playback
-      audioPlayer.stop();
+      stopAllPlayback();
 
-      // Play with parallel TTS
-      audioPlayer.playText(currentText).catch(error => {
-        console.error('[AgentVibes Voice] Replay failed:', error);
-      });
+      // Replay using current mode
+      playText(currentText);
 
-      // Visual feedback
       icon.style.color = '#10b981';
       setTimeout(() => {
         icon.style.color = '#6366f1';
@@ -706,7 +955,12 @@ console.log('[AgentVibes Voice] Content script injected on:', window.location.hr
   function hideSpeakingNotification() {
     const notif = document.getElementById('agentvibes-speaking');
     if (notif) {
-      notif.style.display = 'none';
+      // Only hide if nothing is playing
+      setTimeout(() => {
+        if (!isSpeakingBrowserTTS && !audioPlayer.isActive()) {
+          notif.style.display = 'none';
+        }
+      }, 500);
     }
   }
 
@@ -744,7 +998,6 @@ console.log('[AgentVibes Voice] Content script injected on:', window.location.hr
   // ============================================
 
   function processMessageElement(element, platform) {
-    // Skip during initial page load grace period
     if (!isPageReady) {
       console.log('[AgentVibes Voice] Page not ready yet, skipping message');
       return;
@@ -756,22 +1009,15 @@ console.log('[AgentVibes Voice] Content script injected on:', window.location.hr
       return;
     }
 
-    // Generate a unique ID for this message
     const messageId = element.dataset.messageId || hashMessage(element.outerHTML.substring(0, 200));
     element.dataset.messageId = messageId;
 
-    // Skip if pre-marked as spoken
     if (element.getAttribute('data-agentvibes-spoken') === 'true') return;
-
-    // Skip if already complete
     if (element.dataset.agentvibesComplete === 'true') return;
-
-    // Skip if already being monitored
     if (monitoredMessages.has(messageId)) return;
     if (element.getAttribute('data-agentvibes-monitoring') === 'true') return;
     if (element.getAttribute('data-agentvibes-monitoring') === 'complete') return;
 
-    // Get text content
     let textElement = element;
     if (config.textSelector) {
       textElement = element.querySelector(config.textSelector) || element;
@@ -779,27 +1025,22 @@ console.log('[AgentVibes Voice] Content script injected on:', window.location.hr
 
     const text = extractCleanText(textElement, platform);
 
-    // Only process substantial messages
     if (text.length < MIN_TEXT_LENGTH) return;
 
-    // Check if already spoken
     const textHash = hashMessage(text);
     if (spokenMessages.has(textHash)) return;
 
-    // Start monitoring this message for completion
     startMonitoringMessage(element, platform, messageId);
   }
 
   function processGenericMessage(element) {
     if (!isPageReady) return;
 
-    // Skip if pre-marked as spoken
     if (element.getAttribute('data-agentvibes-spoken') === 'true') return;
 
     const text = extractCleanText(element, 'GENERIC');
     if (text.length < MIN_TEXT_LENGTH) return;
 
-    // Detect if this looks like an AI message
     const isAssistant = (
       element.classList.contains('assistant') ||
       element.classList.contains('ai') ||
@@ -814,14 +1055,11 @@ console.log('[AgentVibes Voice] Content script injected on:', window.location.hr
     const textHash = hashMessage(text);
     if (spokenMessages.has(textHash)) return;
 
-    // For generic messages, just speak them directly (non-streaming)
     spokenMessages.add(textHash);
     addSpeakerIconToMessage(element, text, 'GENERIC');
 
     if (settings.autoSpeak && settings.enabled) {
-      audioPlayer.playText(text).catch(error => {
-        console.error('[AgentVibes Voice] Generic message playback failed:', error);
-      });
+      playText(text);
     }
   }
 
@@ -870,6 +1108,7 @@ console.log('[AgentVibes Voice] Content script injected on:', window.location.hr
     }
 
     console.log('[AgentVibes Voice] MutationObserver attached to:', targetNode);
+    console.log('[AgentVibes Voice] Mode:', settings.fastMode ? 'Fast (Browser TTS)' : 'Server (Parallel TTS)');
 
     observer = new MutationObserver((mutations) => {
       if (!isPageReady) return;
@@ -892,7 +1131,6 @@ console.log('[AgentVibes Voice] Content script injected on:', window.location.hr
 
     isInitialized = true;
 
-    // Initial scan after delay
     setTimeout(() => {
       detectAndProcessMessages(platform);
     }, 500);
@@ -983,17 +1221,18 @@ console.log('[AgentVibes Voice] Content script injected on:', window.location.hr
   async function loadSettings() {
     try {
       const result = await chrome.storage.local.get([
-        'enabled', 'volume', 'voice', 'autoSpeak', 'spokenMessages'
+        'enabled', 'volume', 'voice', 'autoSpeak', 'fastMode', 'spokenMessages'
       ]);
 
       settings = {
         enabled: result.enabled !== false,
         volume: result.volume || 1.0,
         voice: result.voice || null,
-        autoSpeak: result.autoSpeak !== false
+        autoSpeak: result.autoSpeak !== false,
+        fastMode: result.fastMode !== false  // Default to Fast Mode
       };
 
-      console.log('[AgentVibes Voice] Enabled:', settings.enabled, 'AutoSpeak:', settings.autoSpeak);
+      console.log('[AgentVibes Voice] Settings loaded - Fast Mode:', settings.fastMode);
 
       if (result.spokenMessages) {
         Object.keys(result.spokenMessages).forEach(hash => {
@@ -1013,6 +1252,10 @@ console.log('[AgentVibes Voice] Content script injected on:', window.location.hr
     if (request.type === 'TOGGLE_ENABLED') {
       settings.enabled = request.enabled;
     }
+    if (request.type === 'TOGGLE_FAST_MODE') {
+      settings.fastMode = request.fastMode;
+      console.log('[AgentVibes Voice] Fast Mode toggled:', settings.fastMode);
+    }
     if (request.type === 'SERVER_STATUS_CHANGE') {
       if (request.online) {
         console.log('[AgentVibes Voice] Server is online');
@@ -1021,19 +1264,16 @@ console.log('[AgentVibes Voice] Content script injected on:', window.location.hr
       }
     }
     if (request.type === 'VOICE_CHANGED') {
-      // Handle voice change without page refresh
       const newVoice = request.voice;
       console.log('[AgentVibes Voice] Voice changed to:', newVoice);
       settings.voice = newVoice;
 
-      // Persist the voice change to storage
       chrome.storage.local.set({ voice: newVoice }).then(() => {
         console.log('[AgentVibes Voice] Voice setting saved to storage');
       }).catch(err => {
         console.error('[AgentVibes Voice] Failed to save voice setting:', err);
       });
 
-      // Acknowledge the message
       if (sendResponse) {
         sendResponse({ success: true, voice: newVoice });
       }
@@ -1044,6 +1284,67 @@ console.log('[AgentVibes Voice] Content script injected on:', window.location.hr
         sendResponse({ success: true });
       }
     }
+    if (request.type === 'GET_BROWSER_VOICES') {
+      // Return available browser voices
+      if (!browserVoices.length) {
+        browserVoices = loadBrowserVoices();
+      }
+      if (sendResponse) {
+        sendResponse({
+          success: true,
+          voices: browserVoices.map(v => ({
+            name: v.name,
+            lang: v.lang,
+            default: v.default
+          }))
+        });
+      }
+      return true;
+    }
+
+    if (request.type === 'TEST_BROWSER_TTS') {
+      // Handle test voice from popup using browser TTS
+      const { text, voice, volume } = request;
+
+      // Create utterance with specified voice and volume
+      const utterance = new SpeechSynthesisUtterance(text);
+      const selectedVoice = voice ? getBrowserVoice(voice) : browserVoices[0];
+
+      if (selectedVoice) {
+        utterance.voice = selectedVoice;
+        utterance.lang = selectedVoice.lang;
+      }
+
+      utterance.volume = volume || 1.0;
+      utterance.rate = 1.0;
+      utterance.pitch = 1.0;
+
+      utterance.onstart = () => {
+        console.log('[AgentVibes Voice] Test TTS started');
+        showSpeakingNotification();
+        showStopButton();
+      };
+
+      utterance.onend = () => {
+        console.log('[AgentVibes Voice] Test TTS ended');
+        hideSpeakingNotification();
+        hideStopButton();
+      };
+
+      utterance.onerror = (event) => {
+        console.error('[AgentVibes Voice] Test TTS error:', event.error);
+        hideSpeakingNotification();
+        hideStopButton();
+      };
+
+      window.speechSynthesis.speak(utterance);
+
+      if (sendResponse) {
+        sendResponse({ success: true });
+      }
+      return true;
+    }
+
     // Return true to indicate we will send a response asynchronously
     return true;
   });
@@ -1055,7 +1356,7 @@ console.log('[AgentVibes Voice] Content script injected on:', window.location.hr
   function init() {
     currentPlatform = detectPlatform();
     console.log(`[AgentVibes Voice] Detected platform: ${currentPlatform}`);
-    console.log('[AgentVibes Voice] Parallel TTS optimization active');
+    console.log('[AgentVibes Voice] Fast Mode available:', !!window.speechSynthesis);
 
     loadSettings().then(() => {
       console.log('[AgentVibes Voice] Waiting 3 seconds before activating observer...');
