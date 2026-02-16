@@ -202,20 +202,39 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   async function fetchBrowserVoices() {
     // Get browser voices from a content script
-    try {
-      const tabs = await chrome.tabs.query({
-        url: ['https://chat.openai.com/*', 'https://claude.ai/*', 'https://genspark.ai/*', 'https://chatgpt.com/*']
-      });
+    // Firefox fix: Voices load asynchronously and may not be available immediately.
+    // We retry up to 3 times with a delay to allow voices to load.
+    const maxRetries = 3;
+    const retryDelay = 500; // ms
 
-      if (tabs.length > 0) {
-        // Request voices from the first available tab
-        const response = await chrome.tabs.sendMessage(tabs[0].id, { type: 'GET_BROWSER_VOICES' });
-        if (response.success && response.voices) {
-          return response.voices;
+    for (let attempt = 0; attempt < maxRetries; attempt++) {
+      try {
+        const tabs = await chrome.tabs.query({
+          url: ['https://chat.openai.com/*', 'https://claude.ai/*', 'https://genspark.ai/*', 'https://chatgpt.com/*']
+        });
+
+        if (tabs.length > 0) {
+          // Request voices from the first available tab
+          const response = await chrome.tabs.sendMessage(tabs[0].id, { type: 'GET_BROWSER_VOICES' });
+          if (response.success && response.voices && response.voices.length > 0) {
+            console.log('[AgentVibes Voice] Loaded', response.voices.length, 'voices on attempt', attempt + 1);
+            return response.voices;
+          }
+          // Voices not loaded yet, retry after delay
+          if (attempt < maxRetries - 1) {
+            console.log('[AgentVibes Voice] Voices not ready, retrying...');
+            await new Promise(resolve => setTimeout(resolve, retryDelay));
+          }
+        } else {
+          // No tabs available, break out of retry loop
+          break;
+        }
+      } catch (error) {
+        console.log('[AgentVibes Voice] Voice fetch attempt', attempt + 1, 'failed:', error.message);
+        if (attempt < maxRetries - 1) {
+          await new Promise(resolve => setTimeout(resolve, retryDelay));
         }
       }
-    } catch (error) {
-      console.log('[AgentVibes Voice] No content script available, using fallback voice list');
     }
 
     // Fallback: use chrome.tts if available (Chrome extension API)
@@ -231,6 +250,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       });
     }
 
+    console.warn('[AgentVibes Voice] Failed to load voices after', maxRetries, 'attempts');
     return [];
   }
 
