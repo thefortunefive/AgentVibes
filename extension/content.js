@@ -393,18 +393,59 @@ console.log('[AgentVibes Voice] Content script injected on:', window.location.hr
   // Sentence Streaming for Fast Mode
   // ============================================
 
+  // Maximum characters per utterance to avoid browser TTS truncation
+  const MAX_UTTERANCE_LENGTH = 200;
+
   function splitIntoSentences(text) {
     // Expand contractions before sentence splitting for better TTS
     const expandedText = expandContractions(text);
 
     // Match sentences ending with . ! ? followed by space or end of string
-    const sentenceRegex = /[^.!?]+[.!?]+(?:\s|$)/g;
+    const sentenceRegex = /[^.!?]*[.!?]+(?:\s|$)|[^.!?]+$/g;
     const matches = expandedText.match(sentenceRegex) || [];
 
-    // Clean up and filter
-    return matches
-      .map(s => s.trim())
-      .filter(s => s.length > 0);
+    // Clean up and filter, also split long sentences
+    const result = [];
+    for (const s of matches) {
+      const trimmed = s.trim();
+      if (trimmed.length === 0) continue;
+
+      // Split long sentences into chunks to avoid browser TTS limits
+      if (trimmed.length > MAX_UTTERANCE_LENGTH) {
+        const chunks = splitLongSentence(trimmed);
+        result.push(...chunks);
+      } else {
+        result.push(trimmed);
+      }
+    }
+
+    return result;
+  }
+
+  /**
+   * Split a long sentence into smaller chunks at word boundaries.
+   * Some browsers have ~200-300 char limits on speechSynthesis utterances.
+   */
+  function splitLongSentence(sentence) {
+    const chunks = [];
+    const words = sentence.split(' ');
+    let currentChunk = '';
+
+    for (const word of words) {
+      // If adding this word would exceed the limit, save current chunk
+      if (currentChunk.length + word.length + 1 > MAX_UTTERANCE_LENGTH && currentChunk.length > 0) {
+        chunks.push(currentChunk.trim());
+        currentChunk = '';
+      }
+      currentChunk += (currentChunk.length > 0 ? ' ' : '') + word;
+    }
+
+    // Don't forget the last chunk
+    if (currentChunk.length > 0) {
+      chunks.push(currentChunk.trim());
+    }
+
+    return chunks;
   }
 
   function getSentenceHash(sentence) {
@@ -786,8 +827,9 @@ console.log('[AgentVibes Voice] Content script injected on:', window.location.hr
       isComplete: false,
       platform: platform,
       checkInterval: null,
-      // For Fast Mode: track what we've already spoken
-      lastSpokenTextLength: 0
+      // For Fast Mode: track which sentence index we've spoken up to
+      // (avoids text length issues with contraction expansion)
+      lastSpokenSentenceIndex: -1
     };
 
     monitoredMessages.set(messageId, monitorState);
@@ -811,7 +853,7 @@ console.log('[AgentVibes Voice] Content script injected on:', window.location.hr
     const state = monitoredMessages.get(messageId);
     if (!state) return;
 
-    const { textElement, element, platform, lastText, lastChangeTime, lastSpokenTextLength, isComplete } = state;
+    const { textElement, element, platform, lastText, lastChangeTime, isComplete } = state;
 
     if (isComplete) return;
 
@@ -824,46 +866,74 @@ console.log('[AgentVibes Voice] Content script injected on:', window.location.hr
       state.lastChangeTime = now;
     }
 
-    // Get only the new text since last spoken
-    const newText = currentText.substring(lastSpokenTextLength);
-    
-    if (newText.length > 0) {
-      // Check for complete sentences in the new text
-      const sentences = splitIntoSentences(newText);
-      
-      sentences.forEach(sentence => {
-        // Only speak if sentence ends with proper punctuation and has some length
-        if (sentence.match(/[.!?]\s*$/)) {
-          const sentenceHash = getSentenceHash(sentence);
-          
-          if (!spokenSentences.has(sentenceHash)) {
-            console.log('[AgentVibes Voice] Fast Mode: Speaking sentence:', sentence.substring(0, 50) + '...');
-            spokenSentences.add(sentenceHash);
-            
-            // Speak immediately
-            speakWithBrowserTTS(sentence, settings.voice).catch(err => {
-              console.error('[AgentVibes Voice] Fast Mode TTS error:', err);
-            });
+    if (currentText.length > 0) {
+      // Split ALL current text into sentences (with contraction expansion)
+      // Use sentence content hashing for deduplication instead of position tracking
+      // This avoids the text length mismatch between expanded/unexpanded text
+      const allSentences = splitIntoSentences(currentText);
+
+      // Find sentences we haven't spoken yet
+      const newSentences = [];
+      let lastCompleteSentenceIndex = -1;
+
+      for (let i = 0; i < allSentences.length; i++) {
+        const sentence = allSentences[i];
+        const sentenceHash = getSentenceHash(sentence);
+
+        // Check if this is a complete sentence (ends with punctuation)
+        const isCompleteSentence = sentence.match(/[.!?]\s*$/);
+
+        if (!spokenSentences.has(sentenceHash)) {
+          if (isCompleteSentence) {
+            newSentences.push({ sentence, hash: sentenceHash, index: i });
+            lastCompleteSentenceIndex = i;
           }
+          // Don't add incomplete final sentence yet - wait for completion
+        } else if (isCompleteSentence) {
+          // This sentence was already spoken, update our position
+          lastCompleteSentenceIndex = i;
         }
+      }
+
+      // Speak all new complete sentences
+      newSentences.forEach(({ sentence, hash }) => {
+        console.log('[AgentVibes Voice] Fast Mode: Speaking sentence:', sentence.substring(0, 50) + '...');
+        spokenSentences.add(hash);
+
+        // Speak immediately - speechSynthesis has built-in queue
+        speakWithBrowserTTS(sentence, settings.voice).catch(err => {
+          console.error('[AgentVibes Voice] Fast Mode TTS error:', err);
+        });
       });
-      
-      // Update last spoken position
-      state.lastSpokenTextLength = currentText.length;
+
+      // Track which sentence we're up to (for remaining text calculation)
+      state.lastSpokenSentenceIndex = lastCompleteSentenceIndex;
     }
 
     // Check if streaming has stopped completely
     const isStreaming = isMessageStreaming(element, platform);
     const timeSinceChange = now - lastChangeTime;
-    
+
     if (!isStreaming && timeSinceChange >= STREAMING_STABLE_THRESHOLD) {
       // Message is complete
       state.isComplete = true;
       clearInterval(state.checkInterval);
 
       // Speak any remaining text that didn't end with a sentence
-      const remainingText = currentText.substring(state.lastSpokenTextLength).trim();
-      if (remainingText.length > 0 && !remainingText.match(/[.!?]\s*$/)) {
+      // Extract remaining portion from original text based on sentence position
+      const allSentences = splitIntoSentences(currentText);
+      let spokenCount = 0;
+      for (const sentence of allSentences) {
+        if (spokenSentences.has(getSentenceHash(sentence))) {
+          spokenCount++;
+        }
+      }
+
+      // Get sentences that haven't been spoken (including incomplete ones)
+      const remainingSentences = allSentences.slice(spokenCount);
+      const remainingText = remainingSentences.join(' ').trim();
+
+      if (remainingText.length > 0) {
         console.log('[AgentVibes Voice] Fast Mode: Speaking remaining text:', remainingText.substring(0, 50) + '...');
         speakWithBrowserTTS(remainingText, settings.voice).catch(err => {
           console.error('[AgentVibes Voice] Fast Mode remaining TTS error:', err);
