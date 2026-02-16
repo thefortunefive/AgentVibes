@@ -271,8 +271,30 @@ document.addEventListener('DOMContentLoaded', async () => {
   });
   
   voiceSelect.addEventListener('change', async () => {
-    settings.voice = voiceSelect.value || null;
+    const newVoice = voiceSelect.value || null;
+    settings.voice = newVoice;
     await saveSettings();
+    
+    // Immediately notify all content scripts of the voice change
+    // This allows voice changes without page refresh
+    try {
+      const tabs = await chrome.tabs.query({
+        url: ['https://chat.openai.com/*', 'https://claude.ai/*', 'https://genspark.ai/*', 'https://chatgpt.com/*']
+      });
+      
+      tabs.forEach(tab => {
+        chrome.tabs.sendMessage(tab.id, { 
+          type: 'VOICE_CHANGED', 
+          voice: newVoice 
+        }).catch(() => {
+          // Tab might not have content script, ignore error
+        });
+      });
+      
+      console.log('[AgentVibes Voice] Voice changed to:', newVoice);
+    } catch (error) {
+      console.error('[AgentVibes Voice] Failed to notify tabs of voice change:', error);
+    }
   });
   
   testBtn.addEventListener('click', testVoice);

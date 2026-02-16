@@ -708,14 +708,6 @@ console.log('[AgentVibes Voice] Content script injected on:', window.location.hr
     }
   });
 
-  // Listen for stop message from popup
-  chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-    if (request.type === 'STOP_SPEAKING') {
-      stopAllPlayback();
-      sendResponse({ success: true });
-    }
-  });
-
   // ============================================
   // Notification UI
   // ============================================
@@ -1093,6 +1085,32 @@ console.log('[AgentVibes Voice] Content script injected on:', window.location.hr
         console.log('[AgentVibes Voice] Server is offline');
       }
     }
+    if (request.type === 'VOICE_CHANGED') {
+      // Handle voice change without page refresh
+      const newVoice = request.voice;
+      console.log('[AgentVibes Voice] Voice changed to:', newVoice);
+      settings.voice = newVoice;
+      
+      // Persist the voice change to storage
+      chrome.storage.local.set({ voice: newVoice }).then(() => {
+        console.log('[AgentVibes Voice] Voice setting saved to storage');
+      }).catch(err => {
+        console.error('[AgentVibes Voice] Failed to save voice setting:', err);
+      });
+      
+      // Acknowledge the message
+      if (sendResponse) {
+        sendResponse({ success: true, voice: newVoice });
+      }
+    }
+    if (request.type === 'STOP_SPEAKING') {
+      stopAllPlayback();
+      if (sendResponse) {
+        sendResponse({ success: true });
+      }
+    }
+    // Return true to indicate we will send a response asynchronously
+    return true;
   });
 
   // ============================================
