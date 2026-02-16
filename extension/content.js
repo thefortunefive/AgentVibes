@@ -228,7 +228,6 @@ console.log('[AgentVibes Voice] Content script injected on:', window.location.hr
   // ============================================
 
   // Async function to get voices with proper loading handling
-  // Firefox fix: Must call getVoices() once to trigger loading, then wait for onvoiceschanged
   function getBrowserVoicesAsync() {
     return new Promise((resolve) => {
       if (!window.speechSynthesis) {
@@ -237,62 +236,26 @@ console.log('[AgentVibes Voice] Content script injected on:', window.location.hr
         return;
       }
 
-      // Try to get voices immediately - may already be cached
       let voices = window.speechSynthesis.getVoices();
       if (voices.length > 0) {
-        console.log('[AgentVibes Voice] Voices already available:', voices.length);
         resolve(voices);
         return;
       }
 
-      // Firefox/Edge fix: Set up event handler BEFORE calling getVoices()
-      // because some browsers fire the event immediately after first call
-      let voicesLoaded = false;
-
-      // Set up timeout fallback (3 seconds) in case onvoiceschanged never fires
+      // Voices not loaded yet, wait for voiceschanged event
       const timeoutId = setTimeout(() => {
-        if (!voicesLoaded) {
-          voices = window.speechSynthesis.getVoices();
-          console.log('[AgentVibes Voice] Voice loading timeout, returning', voices.length, 'voices');
-          voicesLoaded = true;
-          resolve(voices);
-        }
+        // Fallback: resolve with whatever voices are available after 3 seconds
+        voices = window.speechSynthesis.getVoices();
+        console.log('[AgentVibes Voice] Voice loading timeout, returning', voices.length, 'voices');
+        resolve(voices);
       }, 3000);
 
-      // Set up the event listener - this works in all modern browsers including Firefox
-      // Note: In Firefox, onvoiceschanged is initially undefined but becomes defined after first getVoices() call
-      const voicesChangedHandler = () => {
-        if (!voicesLoaded) {
-          clearTimeout(timeoutId);
-          voices = window.speechSynthesis.getVoices();
-          console.log('[AgentVibes Voice] Voices loaded via onvoiceschanged:', voices.length, 'voices');
-          voicesLoaded = true;
-          resolve(voices);
-
-          // Also update the global browserVoices cache
-          browserVoices = voices;
-          loadBrowserVoices();
-        }
+      window.speechSynthesis.onvoiceschanged = () => {
+        clearTimeout(timeoutId);
+        voices = window.speechSynthesis.getVoices();
+        console.log('[AgentVibes Voice] Voices loaded via event:', voices.length, 'voices');
+        resolve(voices);
       };
-
-      // Always set up the event handler (works in Chrome, Firefox, Edge)
-      window.speechSynthesis.onvoiceschanged = voicesChangedHandler;
-
-      // Firefox fix: Call getVoices() again AFTER setting up the handler
-      // This triggers the browser to start loading voices
-      // In Firefox, the first call returns empty array but triggers the loading process
-      setTimeout(() => {
-        if (!voicesLoaded) {
-          voices = window.speechSynthesis.getVoices();
-          console.log('[AgentVibes Voice] Triggered voice loading, got', voices.length, 'voices');
-          // If we got voices immediately (cached), resolve now
-          if (voices.length > 0 && !voicesLoaded) {
-            clearTimeout(timeoutId);
-            voicesLoaded = true;
-            resolve(voices);
-          }
-        }
-      }, 0);
     });
   }
 
@@ -333,95 +296,39 @@ console.log('[AgentVibes Voice] Content script injected on:', window.location.hr
     return browserVoices;
   }
 
-  // ============================================
-  // Firefox-Compatible Voice Loading Initialization
-  // ============================================
-  // Firefox quirk: onvoiceschanged is initially undefined, and getVoices() returns
-  // empty array on first call. Must call getVoices() to trigger loading, then wait
-  // for onvoiceschanged event. The handler MUST be set before calling getVoices().
-
-  let voicesInitialized = false;
-  let voicesReadyPromise = null;
-
-  function ensureVoicesReady() {
-    if (!voicesReadyPromise) {
-      voicesReadyPromise = getBrowserVoicesAsync().then(voices => {
-        voicesInitialized = true;
-        browserVoices = voices;
-        console.log('[AgentVibes Voice] Voices initialized:', voices.length);
-        return voices;
-      });
-    }
-    return voicesReadyPromise;
-  }
-
-  // Always set up voice loading immediately
+  // Load voices when they're available
   if (window.speechSynthesis) {
-    // Firefox/Edge fix: Set up event handler BEFORE calling getVoices()
-    // because some browsers fire the event immediately after first call
-    window.speechSynthesis.onvoiceschanged = () => {
-      console.log('[AgentVibes Voice] onvoiceschanged fired');
-      const voices = window.speechSynthesis.getVoices();
-      if (voices.length > 0) {
-        browserVoices = voices;
-        loadBrowserVoices();
-        voicesInitialized = true;
-      }
-    };
-
-    // Trigger voice loading immediately
-    ensureVoicesReady().catch(err => {
-      console.error('[AgentVibes Voice] Voice initialization error:', err);
-    });
+    // Chrome loads voices asynchronously
+    if (window.speechSynthesis.onvoiceschanged !== undefined) {
+      window.speechSynthesis.onvoiceschanged = loadBrowserVoices;
+    }
+    // Try loading immediately in case they're already available
+    loadBrowserVoices();
   }
 
-  async function getBrowserVoiceAsync(voiceName) {
-    // Ensure voices are loaded (Firefox compatibility)
-    const voices = await ensureVoicesReady();
-
-    if (!voiceName || voiceName === '') {
-      // Return default voice (first one, likely system default)
-      return voices[0] || null;
-    }
-
-    // Try exact match
-    let voice = voices.find(v => v.name === voiceName);
-
-    // Try case-insensitive match
-    if (!voice) {
-      voice = voices.find(v =>
-        v.name.toLowerCase() === voiceName.toLowerCase()
-      );
-    }
-
-    // Try partial match
-    if (!voice) {
-      voice = voices.find(v =>
-        v.name.toLowerCase().includes(voiceName.toLowerCase())
-      );
-    }
-
-    return voice || voices[0] || null;
-  }
-
-  // Backward-compatible synchronous version for when voices are already cached
   function getBrowserVoice(voiceName) {
     if (!browserVoices.length) {
       browserVoices = loadBrowserVoices();
     }
 
     if (!voiceName || voiceName === '') {
+      // Return default voice (first one, likely system default)
       return browserVoices[0] || null;
     }
 
+    // Try exact match
     let voice = browserVoices.find(v => v.name === voiceName);
+    
+    // Try case-insensitive match
     if (!voice) {
-      voice = browserVoices.find(v =>
+      voice = browserVoices.find(v => 
         v.name.toLowerCase() === voiceName.toLowerCase()
       );
     }
+
+    // Try partial match
     if (!voice) {
-      voice = browserVoices.find(v =>
+      voice = browserVoices.find(v => 
         v.name.toLowerCase().includes(voiceName.toLowerCase())
       );
     }
@@ -1644,8 +1551,7 @@ console.log('[AgentVibes Voice] Content script injected on:', window.location.hr
     }
     if (request.type === 'GET_BROWSER_VOICES') {
       // Return available browser voices (async to handle initial loading)
-      // Use ensureVoicesReady() to guarantee voices are loaded (Firefox compatibility)
-      ensureVoicesReady().then(voices => {
+      getBrowserVoicesAsync().then(voices => {
         // Update the cache and sort
         browserVoices = voices;
         browserVoices.sort((a, b) => {
@@ -1690,54 +1596,46 @@ console.log('[AgentVibes Voice] Content script injected on:', window.location.hr
     }
 
     if (request.type === 'TEST_BROWSER_TTS') {
-      // Handle test voice from popup using browser TTS (async for Firefox compatibility)
+      // Handle test voice from popup using browser TTS
       const { text, voice, volume } = request;
 
-      // Use async voice selection to ensure voices are loaded
-      getBrowserVoiceAsync(voice).then(selectedVoice => {
-        // Create utterance with specified voice and volume
-        const utterance = new SpeechSynthesisUtterance(text);
+      // Create utterance with specified voice and volume
+      const utterance = new SpeechSynthesisUtterance(text);
+      const selectedVoice = voice ? getBrowserVoice(voice) : browserVoices[0];
 
-        if (selectedVoice) {
-          utterance.voice = selectedVoice;
-          utterance.lang = selectedVoice.lang;
-        }
+      if (selectedVoice) {
+        utterance.voice = selectedVoice;
+        utterance.lang = selectedVoice.lang;
+      }
 
-        utterance.volume = volume || 1.0;
-        utterance.rate = settings.rate || 1.0;
-        utterance.pitch = 1.0;
+      utterance.volume = volume || 1.0;
+      utterance.rate = 1.0;
+      utterance.pitch = 1.0;
 
-        utterance.onstart = () => {
-          console.log('[AgentVibes Voice] Test TTS started');
-          showSpeakingNotification();
-          showStopButton();
-        };
+      utterance.onstart = () => {
+        console.log('[AgentVibes Voice] Test TTS started');
+        showSpeakingNotification();
+        showStopButton();
+      };
 
-        utterance.onend = () => {
-          console.log('[AgentVibes Voice] Test TTS ended');
-          hideSpeakingNotification();
-          hideStopButton();
-        };
+      utterance.onend = () => {
+        console.log('[AgentVibes Voice] Test TTS ended');
+        hideSpeakingNotification();
+        hideStopButton();
+      };
 
-        utterance.onerror = (event) => {
-          console.error('[AgentVibes Voice] Test TTS error:', event.error);
-          hideSpeakingNotification();
-          hideStopButton();
-        };
+      utterance.onerror = (event) => {
+        console.error('[AgentVibes Voice] Test TTS error:', event.error);
+        hideSpeakingNotification();
+        hideStopButton();
+      };
 
-        window.speechSynthesis.speak(utterance);
+      window.speechSynthesis.speak(utterance);
 
-        if (sendResponse) {
-          sendResponse({ success: true });
-        }
-      }).catch(err => {
-        console.error('[AgentVibes Voice] Test TTS voice selection error:', err);
-        if (sendResponse) {
-          sendResponse({ success: false, error: err.message });
-        }
-      });
-
-      return true; // Async response
+      if (sendResponse) {
+        sendResponse({ success: true });
+      }
+      return true;
     }
 
     // Return true to indicate we will send a response asynchronously
