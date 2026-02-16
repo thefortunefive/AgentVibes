@@ -1,9 +1,10 @@
 console.log('[AgentVibes Voice] Content script injected on:', window.location.href);
 
-// AgentVibes Voice - Content Script
-// Detects AI chat messages and adds voice output functionality
-// Supports: ChatGPT, Claude, Genspark, and generic chat interfaces
-// Features: Streaming TTS - processes sentences as they arrive
+// AgentVibes Voice - Content Script (Simplified Version)
+// Simple "wait then speak" approach - no streaming complexity
+// 1. Wait for message to be complete
+// 2. Split into chunks
+// 3. Play sequentially with preloading
 
 (function() {
   'use strict';
@@ -41,161 +42,55 @@ console.log('[AgentVibes Voice] Content script injected on:', window.location.hr
 
   let currentPlatform = null;
   let settings = { enabled: true, volume: 1.0, voice: null, autoSpeak: true };
-  let spokenMessages = new Set(); // Track spoken message hashes
-  let spokenSentences = new Set(); // Track spoken sentence hashes for streaming
+  let spokenMessages = new Set();
   let currentAudio = null;
   let stopButton = null;
   let observer = null;
   let isInitialized = false;
   let isPageReady = false;
   let lastSpeakTime = 0;
-  const SPEAK_COOLDOWN = 5000; // 5 seconds between speaks
-  const INITIAL_LOAD_GRACE = 5000; // 5 seconds grace period
-  const MIN_TEXT_LENGTH = 50; // Changed from 20 to 50
-  const OBSERVER_DELAY = 3000; // Wait 3 seconds before starting observer
-  const DEBOUNCE_DELAY = 500; // 500ms debounce
-  const POLLING_INTERVAL = 300; // 300ms for streaming text polling
+
+  const SPEAK_COOLDOWN = 5000;
+  const INITIAL_LOAD_GRACE = 5000;
+  const MIN_TEXT_LENGTH = 50;
+  const OBSERVER_DELAY = 3000;
+  const DEBOUNCE_DELAY = 500;
+  const STREAMING_CHECK_INTERVAL = 500;
+  const STREAMING_STABLE_THRESHOLD = 2000;
+
+  // Track messages being monitored for completion
+  const monitoredMessages = new Map(); // messageId -> { element, lastText, lastChangeTime, isComplete }
 
   // ============================================
-  // Streaming TTS - Chunk Queue Management
+  // Simple Sequential Audio Player
   // ============================================
 
-  const MIN_CHUNK_LENGTH = 150; // Minimum characters before sending to TTS
-  const MAX_CHUNK_SENTENCES = 3; // Maximum sentences per chunk
-
-  class ChunkQueue {
+  class AudioPlayer {
     constructor() {
       this.queue = [];
       this.isPlaying = false;
       this.currentAudio = null;
-      this.nextAudioData = null; // Preloaded audio data for next chunk
-      this.nextChunk = null; // The chunk that was preloaded
-      this.pendingBuffer = ''; // Buffer for accumulating sentences
-      this.pendingSentences = 0; // Count of complete sentences in buffer
-      this.isFirstChunk = true; // Track if we've sent the first chunk yet
-      this.lastQueuedPosition = 0; // Track character position in full text that has been queued
+      this.nextAudioData = null;
+      this.nextChunk = null;
     }
 
-    // Check if buffer contains at least one complete sentence
-    hasCompleteSentence() {
-      return /[.!?]\s*$/.test(this.pendingBuffer.trim());
-    }
+    // Add chunks to queue and start playing
+    playChunks(chunks) {
+      if (!chunks || chunks.length === 0) return;
 
-    // Add text to buffer. Returns true if a chunk was created and queued.
-    // textPosition: the character position in the full message text where this text starts
-    addText(text, isFinal = false, textPosition = null) {
-      if (!text || text.length < 1) {
-        // Even if text is empty, check if we need to flush final buffer
-        if (isFinal) {
-          return this.flushFinalBuffer();
-        }
-        return false;
+      this.queue.push(...chunks);
+      console.log('[AgentVibes Voice] Added', chunks.length, 'chunks to queue');
+
+      if (!this.isPlaying) {
+        this.playNext();
+      } else {
+        // Preload next chunk if we're already playing
+        this.preloadNext();
       }
-
-      // Track position in the full message text
-      if (textPosition !== null) {
-        this.lastQueuedPosition = Math.max(this.lastQueuedPosition, textPosition + text.length);
-      }
-
-      // Add to pending buffer
-      this.pendingBuffer += (this.pendingBuffer ? ' ' : '') + text;
-
-      // Count complete sentences in buffer
-      this.pendingSentences = (this.pendingBuffer.match(/[.!?]+/g) || []).length;
-
-      const bufferLength = this.pendingBuffer.length;
-
-      // Determine if we should create a chunk:
-      // 1. isFinal flag (force flush)
-      // 2. First chunk: send as soon as we have at least 1 complete sentence (fast start)
-      // 3. Subsequent chunks: batch to 150+ chars or 2-3 sentences
-      const isFirstChunkReady = this.isFirstChunk && this.hasCompleteSentence();
-      const shouldCreateChunk = isFinal ||
-                                isFirstChunkReady ||
-                                bufferLength >= MIN_CHUNK_LENGTH ||
-                                this.pendingSentences >= MAX_CHUNK_SENTENCES;
-
-      if (shouldCreateChunk && bufferLength >= 10) {
-        // Create a chunk from the buffer
-        const chunk = this.pendingBuffer.trim();
-        const chunkHash = hashMessage(chunk);
-
-        // Skip if already spoken
-        if (spokenSentences.has(chunkHash)) {
-          this.resetBuffer();
-          this.isFirstChunk = false;
-          return false;
-        }
-
-        // Mark as spoken immediately to prevent duplicates
-        spokenSentences.add(chunkHash);
-        this.queue.push(chunk);
-        console.log('[AgentVibes Voice] Chunk queued (' + bufferLength + ' chars, ' + this.pendingSentences + ' sentences, first=' + this.isFirstChunk + '):', chunk.substring(0, 60) + (chunk.length > 60 ? '...' : ''));
-
-        // Reset buffer
-        this.resetBuffer();
-
-        // Mark first chunk as sent
-        this.isFirstChunk = false;
-
-        // Start playing if not already
-        if (!this.isPlaying) {
-          this.playNext();
-        } else {
-          // If already playing, preload the next chunk if this is the only item
-          if (this.queue.length === 1) {
-            this.preloadNext();
-          }
-        }
-
-        return true;
-      }
-
-      return false;
-    }
-
-    // Flush any remaining buffer as a final chunk - only sends truly unsent text
-    flushFinalBuffer() {
-      if (this.pendingBuffer && this.pendingBuffer.length >= 5) {
-        const chunk = this.pendingBuffer.trim();
-        const chunkHash = hashMessage(chunk);
-
-        // Skip if already spoken (prevents duplicate final sentences)
-        if (!spokenSentences.has(chunkHash)) {
-          spokenSentences.add(chunkHash);
-          this.queue.push(chunk);
-          console.log('[AgentVibes Voice] Final chunk queued (' + chunk.length + ' chars):', chunk.substring(0, 60) + (chunk.length > 60 ? '...' : ''));
-
-          this.resetBuffer();
-          this.isFirstChunk = false;
-
-          if (!this.isPlaying) {
-            this.playNext();
-          }
-          return true;
-        }
-        this.resetBuffer();
-      }
-      return false;
-    }
-
-    resetBuffer() {
-      this.pendingBuffer = '';
-      this.pendingSentences = 0;
-    }
-
-    // Legacy flush method - delegates to flushFinalBuffer for safety
-    flushBuffer() {
-      return this.flushFinalBuffer();
     }
 
     async playNext() {
       if (this.queue.length === 0) {
-        // Check if we have a preloaded next audio that wasn't used
-        if (this.nextAudioData && this.nextChunk) {
-          this.nextAudioData = null;
-          this.nextChunk = null;
-        }
         this.isPlaying = false;
         hideSpeakingNotification();
         hideStopButton();
@@ -206,14 +101,14 @@ console.log('[AgentVibes Voice] Content script injected on:', window.location.hr
       const chunk = this.queue.shift();
 
       try {
-        // Preload the NEXT chunk before playing current one
+        // Preload the next chunk before playing current one
         if (this.queue.length > 0) {
           this.preloadNext();
         }
 
         await this.playChunk(chunk);
 
-        // Continue with next chunk (next audio should already be preloaded)
+        // Continue with next chunk
         this.playNext();
       } catch (error) {
         console.error('[AgentVibes Voice] Error playing chunk:', error);
@@ -225,14 +120,13 @@ console.log('[AgentVibes Voice] Content script injected on:', window.location.hr
     }
 
     async preloadNext() {
-      // Preload audio for the next chunk in queue
       if (this.queue.length === 0 || this.nextAudioData) return;
 
       const nextChunk = this.queue[0];
-      if (nextChunk === this.nextChunk) return; // Already preloading this one
+      if (nextChunk === this.nextChunk) return;
 
       this.nextChunk = nextChunk;
-      console.log('[AgentVibes Voice] Preloading audio for chunk:', nextChunk.substring(0, 60) + '...');
+      console.log('[AgentVibes Voice] Preloading audio for next chunk');
 
       try {
         const response = await chrome.runtime.sendMessage({
@@ -253,7 +147,6 @@ console.log('[AgentVibes Voice] Content script injected on:', window.location.hr
 
           if (fetchResponse.success && fetchResponse.dataUrl) {
             this.nextAudioData = fetchResponse.dataUrl;
-            console.log('[AgentVibes Voice] Audio preloaded for chunk:', nextChunk.substring(0, 40) + '...');
           }
         }
       } catch (error) {
@@ -270,17 +163,14 @@ console.log('[AgentVibes Voice] Content script injected on:', window.location.hr
 
           let audio;
 
-          // Check if we have preloaded audio for this exact chunk
+          // Use preloaded audio if available
           if (this.nextChunk === chunk && this.nextAudioData) {
-            console.log('[AgentVibes Voice] Using preloaded audio for chunk:', chunk.substring(0, 60) + '...');
             audio = new Audio(this.nextAudioData);
             audio.volume = settings.volume;
-            // Clear the preloaded data since we're using it
             this.nextAudioData = null;
             this.nextChunk = null;
           } else {
             // Fetch audio normally
-            console.log('[AgentVibes Voice] Fetching audio for chunk:', chunk.substring(0, 60) + '...');
             const response = await chrome.runtime.sendMessage({
               type: 'TTS_REQUEST',
               data: {
@@ -311,7 +201,6 @@ console.log('[AgentVibes Voice] Content script injected on:', window.location.hr
           this.currentAudio = audio;
           currentAudio = audio;
 
-          // The audio is already preloaded, so we can play immediately
           audio.onended = () => {
             this.currentAudio = null;
             currentAudio = null;
@@ -325,15 +214,13 @@ console.log('[AgentVibes Voice] Content script injected on:', window.location.hr
             reject(e);
           };
 
-          // Ensure audio is ready before playing
-          if (audio.readyState >= 2) { // HAVE_CURRENT_DATA or better
+          if (audio.readyState >= 2) {
             await audio.play();
           } else {
             audio.addEventListener('canplay', async () => {
               await audio.play();
             }, { once: true });
           }
-
         } catch (error) {
           console.error('[AgentVibes Voice] TTS error for chunk:', error);
           reject(error);
@@ -343,7 +230,6 @@ console.log('[AgentVibes Voice] Content script injected on:', window.location.hr
 
     clear() {
       this.queue = [];
-      this.resetBuffer();
       if (this.currentAudio) {
         this.currentAudio.pause();
         this.currentAudio = null;
@@ -351,34 +237,14 @@ console.log('[AgentVibes Voice] Content script injected on:', window.location.hr
       this.nextAudioData = null;
       this.nextChunk = null;
       this.isPlaying = false;
-      this.isFirstChunk = true; // Reset for next message
-      this.lastQueuedPosition = 0; // Reset position tracking
     }
 
     isActive() {
-      return this.isPlaying || this.queue.length > 0 || this.pendingBuffer.length > 0;
-    }
-
-    getDebugState() {
-      return {
-        queueLength: this.queue.length,
-        isPlaying: this.isPlaying,
-        bufferLength: this.pendingBuffer.length,
-        pendingSentences: this.pendingSentences,
-        isFirstChunk: this.isFirstChunk,
-        lastQueuedPosition: this.lastQueuedPosition,
-        queue: this.queue.slice(0, 3), // First 3 items
-        hasPreloadedAudio: !!this.nextAudioData,
-        preloadedChunk: this.nextChunk ? this.nextChunk.substring(0, 50) + '...' : null
-      };
+      return this.isPlaying || this.queue.length > 0;
     }
   }
 
-  // Global chunk queue for streaming TTS
-  const chunkQueue = new ChunkQueue();
-
-  // Track streaming messages and their polling state
-  const streamingMessages = new Map(); // messageId -> { element, lastText, chunkQueue, intervalId, isComplete }
+  const audioPlayer = new AudioPlayer();
 
   // ============================================
   // Utility Functions
@@ -386,16 +252,13 @@ console.log('[AgentVibes Voice] Content script injected on:', window.location.hr
 
   function detectPlatform() {
     const hostname = window.location.hostname;
-
     if (hostname.includes('claude.ai')) return 'CLAUDE';
     if (hostname.includes('chat.openai.com')) return 'CHATGPT';
     if (hostname.includes('genspark.ai')) return 'GENSPARK';
-
     return 'GENERIC';
   }
 
   function hashMessage(text) {
-    // Simple hash for message tracking
     let hash = 0;
     for (let i = 0; i < text.length; i++) {
       const char = text.charCodeAt(i);
@@ -408,10 +271,9 @@ console.log('[AgentVibes Voice] Content script injected on:', window.location.hr
   function extractCleanText(element, platform) {
     if (!element) return '';
 
-    // Clone to avoid modifying original
     const clone = element.cloneNode(true);
 
-    // Remove code blocks (they don't need to be spoken)
+    // Remove code blocks
     const codeBlocks = clone.querySelectorAll('pre, code, .code-block, [class*="code"]');
     codeBlocks.forEach(block => block.remove());
 
@@ -431,8 +293,9 @@ console.log('[AgentVibes Voice] Content script injected on:', window.location.hr
     return text;
   }
 
+  // Check if message is currently streaming
   function isMessageStreaming(element, platform) {
-    if (!element) return true;
+    if (!element) return false;
 
     const config = PLATFORMS[platform];
     if (!config) return false;
@@ -459,56 +322,67 @@ console.log('[AgentVibes Voice] Content script injected on:', window.location.hr
   }
 
   // ============================================
-  // Sentence Extraction for Streaming TTS
+  // Text Chunking - Split into 2-3 sentence chunks
   // ============================================
 
-  function extractSentencesFromText(text, alreadySentSentences = new Set()) {
-    // Split on sentence-ending punctuation followed by space or end of text
-    // Matches: . ! ? followed by space, newline, or end of string
+  function splitIntoChunks(text) {
+    // Split text into sentences
+    // Match sentences ending with . ! ? followed by space or end
     const sentenceRegex = /[^.!?]+[.!?]+(?:\s|$)|[^.!?]+$/g;
-    const matches = text.match(sentenceRegex) || [];
+    const sentences = (text.match(sentenceRegex) || [])
+      .map(s => s.trim())
+      .filter(s => s.length >= 10);
 
-    const newSentences = [];
+    if (sentences.length === 0) return [text];
 
-    for (const match of matches) {
-      const sentence = match.trim();
+    const chunks = [];
+    let currentChunk = [];
 
-      // Skip very short sentences
-      if (sentence.length < 10) continue;
+    for (let i = 0; i < sentences.length; i++) {
+      currentChunk.push(sentences[i]);
 
-      // Check if already sent (by hash)
-      const sentenceHash = hashMessage(sentence);
-      if (!alreadySentSentences.has(sentenceHash) && !spokenSentences.has(sentenceHash)) {
-        newSentences.push(sentence);
-        alreadySentSentences.add(sentenceHash);
+      // Create chunk every 2-3 sentences
+      if (currentChunk.length >= 3 || i === sentences.length - 1) {
+        chunks.push(currentChunk.join(' '));
+        currentChunk = [];
+      } else if (currentChunk.length === 2 && i < sentences.length - 1) {
+        // Check if next sentence is very short - if so, include it for better flow
+        const nextSentence = sentences[i + 1];
+        if (nextSentence && nextSentence.length < 50) {
+          // Wait for the third sentence
+          continue;
+        } else {
+          chunks.push(currentChunk.join(' '));
+          currentChunk = [];
+        }
       }
     }
 
-    return newSentences;
-  }
-
-  function isCompleteSentence(text) {
-    // Check if text ends with sentence-ending punctuation (possibly followed by whitespace)
-    return /[.!?]\s*$/.test(text.trim());
-  }
-
-  // ============================================
-  // Streaming Message Processing
-  // ============================================
-
-  function startStreamingProcessing(messageElement, platform, messageId) {
-    // Skip if already being processed
-    if (streamingMessages.has(messageId)) {
-      return;
+    // Add any remaining sentences
+    if (currentChunk.length > 0) {
+      if (chunks.length > 0) {
+        // Append to last chunk if it's small
+        const lastChunk = chunks[chunks.length - 1];
+        if (lastChunk.length < 150) {
+          chunks[chunks.length - 1] = lastChunk + ' ' + currentChunk.join(' ');
+        } else {
+          chunks.push(currentChunk.join(' '));
+        }
+      } else {
+        chunks.push(currentChunk.join(' '));
+      }
     }
 
-    // Mark message as being handled by streaming TTS to prevent fallback speakText()
-    messageElement.setAttribute('data-agentvibes-streaming', 'true');
-    console.log('[AgentVibes Voice] Marked message for streaming TTS:', messageId);
+    return chunks.filter(chunk => chunk.length >= 10);
+  }
 
-    // Reset chunk queue state for new message (fast-first-chunk mode)
-    chunkQueue.isFirstChunk = true;
-    chunkQueue.lastQueuedPosition = 0;
+  // ============================================
+  // Message Monitoring - Wait for completion
+  // ============================================
+
+  function startMonitoringMessage(messageElement, platform, messageId) {
+    // Skip if already being monitored
+    if (monitoredMessages.has(messageId)) return;
 
     const config = PLATFORMS[platform];
     let textElement = messageElement;
@@ -516,131 +390,131 @@ console.log('[AgentVibes Voice] Content script injected on:', window.location.hr
       textElement = messageElement.querySelector(config.textSelector) || messageElement;
     }
 
-    const streamingState = {
+    const initialText = extractCleanText(textElement, platform);
+
+    // Skip if too short
+    if (initialText.length < MIN_TEXT_LENGTH) return;
+
+    // Mark as being monitored
+    messageElement.setAttribute('data-agentvibes-monitoring', 'true');
+
+    const monitorState = {
       element: messageElement,
       textElement: textElement,
-      lastText: '',
-      lastQueuedPosition: 0,  // Track character position that has been queued for TTS (prevents duplicates)
+      lastText: initialText,
+      lastChangeTime: Date.now(),
       isComplete: false,
-      platform: platform
+      platform: platform,
+      checkInterval: null
     };
 
-    streamingMessages.set(messageId, streamingState);
+    monitoredMessages.set(messageId, monitorState);
 
-    console.log('[AgentVibes Voice] Started streaming processing for message:', messageId);
+    console.log('[AgentVibes Voice] Started monitoring message:', messageId, 'Initial length:', initialText.length);
 
-    // Start polling
-    const intervalId = setInterval(() => {
-      pollStreamingMessage(messageId);
-    }, POLLING_INTERVAL);
+    // Start checking for completion
+    monitorState.checkInterval = setInterval(() => {
+      checkMessageCompletion(messageId);
+    }, STREAMING_CHECK_INTERVAL);
 
-    streamingState.intervalId = intervalId;
-
-    // Add speaker icon immediately
-    const currentText = extractCleanText(textElement, platform);
-    addSpeakerIconToMessage(messageElement, currentText, platform);
-
-    // Auto-speak first chunk if enabled - add to buffer for batching
-    // For first chunk, we use the fast-path (no min length) via isFirstChunk flag in ChunkQueue
-    if (settings.autoSpeak && settings.enabled && currentText.length >= 10) {
-      chunkQueue.addText(currentText, false, 0);
-      streamingState.lastQueuedPosition = currentText.length;
-    }
+    // Add speaker icon
+    addSpeakerIconToMessage(messageElement, initialText, platform);
   }
 
-  function pollStreamingMessage(messageId) {
-    const state = streamingMessages.get(messageId);
+  function checkMessageCompletion(messageId) {
+    const state = monitoredMessages.get(messageId);
     if (!state) return;
 
-    const { textElement, lastText, element, platform, lastQueuedPosition = 0 } = state;
+    const { textElement, element, platform, lastText, lastChangeTime, isComplete } = state;
+
+    if (isComplete) return;
+
     const currentText = extractCleanText(textElement, platform);
+    const now = Date.now();
 
     // Check if text has changed
-    if (currentText === lastText) {
-      // Check if streaming has finished
-      const isStreaming = isMessageStreaming(element, platform);
-
-      if (!isStreaming && !state.isComplete) {
-        // Streaming finished - process any remaining text
-        state.isComplete = true;
-        clearInterval(state.intervalId);
-
-        // Flush any remaining buffer as final chunk
-        console.log('[AgentVibes Voice] Streaming ended, flushing final chunk');
-        chunkQueue.flushBuffer();
-
-        // Mark message as fully processed
-        element.setAttribute('data-agentvibes-streaming', 'complete');
-        element.dataset.agentvibesStreamingComplete = 'true';
-        console.log('[AgentVibes Voice] Streaming completed for message:', messageId);
-
-        // Clean up after a delay
-        setTimeout(() => {
-          streamingMessages.delete(messageId);
-        }, 5000);
-      }
-
+    if (currentText !== lastText) {
+      state.lastText = currentText;
+      state.lastChangeTime = now;
+      console.log('[AgentVibes Voice] Message text changed, length:', currentText.length);
       return;
     }
 
-    // Text has grown - add ONLY the new text to the chunk buffer
-    if (currentText.length > lastText.length) {
-      console.log('[AgentVibes Voice] Text grew from', lastText.length, 'to', currentText.length, 'chars');
+    // Check if streaming has stopped (text stable for threshold time)
+    const timeSinceChange = now - lastChangeTime;
+    const isStreaming = isMessageStreaming(element, platform);
 
-      // CRITICAL FIX: Only add text AFTER lastQueuedPosition to prevent duplicates
-      // This ensures we never add the same text twice to the buffer
-      const newTextStart = state.lastQueuedPosition;
-      const newTextPortion = currentText.substring(newTextStart);
+    // Message is complete if:
+    // 1. Streaming attribute shows false, OR
+    // 2. Text hasn't changed for STREAMING_STABLE_THRESHOLD (2 seconds)
+    const isCompleteNow = !isStreaming && timeSinceChange >= STREAMING_STABLE_THRESHOLD;
 
-      if (newTextPortion.length >= 1) {
-        // Add new text to chunk buffer with its position for tracking
-        // The chunkQueue will:
-        // - For first chunk: send as soon as first complete sentence is available (fast start)
-        // - For subsequent chunks: batch to 150+ chars or 2-3 sentences (smooth playback)
-        const chunkCreated = chunkQueue.addText(newTextPortion, false, newTextStart);
+    if (isCompleteNow && currentText.length >= MIN_TEXT_LENGTH) {
+      // Message is complete!
+      state.isComplete = true;
+      clearInterval(state.checkInterval);
 
-        if (chunkCreated) {
-          console.log('[AgentVibes Voice] New chunk queued from text growth');
-        }
+      console.log('[AgentVibes Voice] Message complete! Length:', currentText.length, 'Time stable:', timeSinceChange + 'ms');
 
-        // Update lastQueuedPosition to track all text that has been handed to the buffer
-        // The chunkQueue updates lastQueuedPosition internally via addText
-        state.lastQueuedPosition = chunkQueue.lastQueuedPosition;
-      }
+      // Mark as complete
+      element.setAttribute('data-agentvibes-monitoring', 'complete');
+      element.dataset.agentvibesComplete = 'true';
 
-      // Update tracking state
-      state.lastText = currentText;
+      // Process the complete message
+      processCompleteMessage(element, currentText, platform, messageId);
+
+      // Clean up after a delay
+      setTimeout(() => {
+        monitoredMessages.delete(messageId);
+      }, 5000);
     }
   }
 
-  function stopAllStreaming() {
-    console.log('[AgentVibes Voice] Stopping all streaming TTS...');
-
-    // Stop all polling intervals
-    for (const [messageId, state] of streamingMessages) {
-      if (state.intervalId) {
-        clearInterval(state.intervalId);
-        state.intervalId = null;
-      }
-      // Keep the streaming messages in the map but mark them as stopped
-      // This prevents them from being re-processed
+  function processCompleteMessage(element, text, platform, messageId) {
+    // Skip if already spoken
+    const textHash = hashMessage(text);
+    if (spokenMessages.has(textHash)) {
+      console.log('[AgentVibes Voice] Message already spoken, skipping');
+      return;
     }
 
-    // Clear the chunk queue and stop current audio
-    chunkQueue.clear();
+    // Mark as spoken
+    spokenMessages.add(textHash);
+    element.dataset.agentvibesSpoken = textHash;
 
-    // Reset the spoken sentences tracking to prevent accumulation
-    spokenSentences.clear();
+    // Split into chunks
+    const chunks = splitIntoChunks(text);
+    console.log('[AgentVibes Voice] Split into', chunks.length, 'chunks');
 
-    // Mark all streaming messages as stopped (but not complete)
-    // This prevents the fallback from picking them up
-    for (const [messageId, state] of streamingMessages) {
-      if (state.element) {
-        state.element.setAttribute('data-agentvibes-streaming', 'stopped');
+    // Auto-speak if enabled
+    if (settings.autoSpeak && settings.enabled) {
+      console.log('[AgentVibes Voice] Starting playback of', chunks.length, 'chunks');
+      audioPlayer.playChunks(chunks);
+    }
+  }
+
+  function stopAllPlayback() {
+    console.log('[AgentVibes Voice] Stopping all playback...');
+
+    // Stop all monitoring intervals
+    for (const [messageId, state] of monitoredMessages) {
+      if (state.checkInterval) {
+        clearInterval(state.checkInterval);
       }
     }
+    monitoredMessages.clear();
 
-    console.log('[AgentVibes Voice] All streaming TTS stopped, queue cleared');
+    // Clear audio player
+    audioPlayer.clear();
+
+    // Stop current audio
+    if (currentAudio) {
+      currentAudio.pause();
+      currentAudio = null;
+    }
+
+    hideSpeakingNotification();
+    hideStopButton();
   }
 
   // ============================================
@@ -668,62 +542,25 @@ console.log('[AgentVibes Voice] Content script injected on:', window.location.hr
     const icon = createSpeakerIcon();
 
     // Position based on platform
-    if (platform === 'CLAUDE') {
-      messageElement.style.position = 'relative';
-      icon.style.cssText = `
-        position: absolute;
-        bottom: 8px;
-        right: 8px;
-        width: 32px;
-        height: 32px;
-        background: rgba(99, 102, 241, 0.1);
-        border-radius: 50%;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        cursor: pointer;
-        color: #6366f1;
-        transition: all 0.2s;
-        z-index: 100;
-      `;
-    } else if (platform === 'CHATGPT') {
-      messageElement.style.position = 'relative';
-      icon.style.cssText = `
-        position: absolute;
-        bottom: 8px;
-        right: 8px;
-        width: 32px;
-        height: 32px;
-        background: rgba(99, 102, 241, 0.1);
-        border-radius: 50%;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        cursor: pointer;
-        color: #6366f1;
-        transition: all 0.2s;
-        z-index: 100;
-      `;
-    } else {
-      // Generic positioning
-      messageElement.style.position = 'relative';
-      icon.style.cssText = `
-        position: absolute;
-        bottom: 8px;
-        right: 8px;
-        width: 32px;
-        height: 32px;
-        background: rgba(99, 102, 241, 0.1);
-        border-radius: 50%;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        cursor: pointer;
-        color: #6366f1;
-        transition: all 0.2s;
-        z-index: 100;
-      `;
-    }
+    const baseStyles = `
+      position: absolute;
+      bottom: 8px;
+      right: 8px;
+      width: 32px;
+      height: 32px;
+      background: rgba(99, 102, 241, 0.1);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      color: #6366f1;
+      transition: all 0.2s;
+      z-index: 100;
+    `;
+
+    messageElement.style.position = 'relative';
+    icon.style.cssText = baseStyles;
 
     // Hover effects
     icon.addEventListener('mouseenter', () => {
@@ -736,11 +573,25 @@ console.log('[AgentVibes Voice] Content script injected on:', window.location.hr
       icon.style.transform = 'scale(1)';
     });
 
-    // Click handler
+    // Click handler - replay the complete message
     icon.addEventListener('click', (e) => {
       e.preventDefault();
       e.stopPropagation();
-      speakText(text, { isReplay: true });
+
+      // Get current text
+      const config = PLATFORMS[platform];
+      let textElement = messageElement;
+      if (config && config.textSelector) {
+        textElement = messageElement.querySelector(config.textSelector) || messageElement;
+      }
+      const currentText = extractCleanText(textElement, platform);
+
+      // Stop any current playback
+      audioPlayer.clear();
+
+      // Split and play
+      const chunks = splitIntoChunks(currentText);
+      audioPlayer.playChunks(chunks);
 
       // Visual feedback
       icon.style.color = '#10b981';
@@ -753,14 +604,14 @@ console.log('[AgentVibes Voice] Content script injected on:', window.location.hr
   }
 
   // ============================================
-  // Text-to-Speech Functions
+  // Text-to-Speech Functions (for non-streaming messages)
   // ============================================
 
   async function speakText(text, options = {}) {
     if (!text || text.length < 5) return;
     if (!settings.enabled && !options.isReplay) return;
 
-    // Check cooldown (5 seconds between speaks) - only for non-replay
+    // Check cooldown
     const now = Date.now();
     if (!options.isReplay && (now - lastSpeakTime) < SPEAK_COOLDOWN) {
       console.log('[AgentVibes Voice] Speak cooldown active, skipping');
@@ -775,17 +626,6 @@ console.log('[AgentVibes Voice] Content script injected on:', window.location.hr
       return;
     }
 
-    // CRITICAL: Check if this text is from a message being handled by streaming TTS
-    // We look for any message element that contains this text and is marked as streaming
-    const messageElements = document.querySelectorAll('[data-agentvibes-streaming="true"]');
-    for (const msgEl of messageElements) {
-      const msgText = extractCleanText(msgEl, currentPlatform);
-      if (msgText && (msgText.includes(text) || text.includes(msgText))) {
-        console.log('[AgentVibes Voice] Skipping speakText - message is being handled by streaming TTS');
-        return;
-      }
-    }
-
     // Update last speak time and mark as spoken
     lastSpeakTime = now;
     spokenMessages.add(textHash);
@@ -796,66 +636,9 @@ console.log('[AgentVibes Voice] Content script injected on:', window.location.hr
       currentAudio = null;
     }
 
-    // Show notification that we're speaking
-    showSpeakingNotification();
-
-    try {
-      // Send TTS request to background script (avoids CORS)
-      const response = await chrome.runtime.sendMessage({
-        type: 'TTS_REQUEST',
-        data: {
-          text: text,
-          voice: settings.voice,
-          speed: 1.0,
-          pitch: 1.0
-        }
-      });
-
-      if (response.success && response.audioUrl) {
-        // Fetch audio through background script to bypass Mixed Content restriction
-        console.log('[AgentVibes Voice] Fetching audio via background script to avoid Mixed Content');
-
-        const fetchResponse = await chrome.runtime.sendMessage({
-          type: 'FETCH_AUDIO',
-          url: response.audioUrl
-        });
-
-        if (!fetchResponse.success || !fetchResponse.dataUrl) {
-          throw new Error(fetchResponse.error || 'Failed to fetch audio');
-        }
-
-        console.log('[AgentVibes Voice] Audio loaded as data URL, playing...');
-
-        // Play audio using the base64 data URL (no Mixed Content issue)
-        currentAudio = new Audio(fetchResponse.dataUrl);
-        currentAudio.volume = settings.volume;
-
-        // Show stop button when audio starts playing
-        showStopButton();
-
-        currentAudio.onended = () => {
-          currentAudio = null;
-          hideSpeakingNotification();
-          hideStopButton();
-        };
-
-        currentAudio.onerror = (e) => {
-          console.error('[AgentVibes Voice] Audio playback failed:', e);
-          currentAudio = null;
-          hideSpeakingNotification();
-          hideStopButton();
-          showErrorNotification('Audio playback failed');
-        };
-
-        await currentAudio.play();
-      } else {
-        throw new Error(response.error || 'TTS failed');
-      }
-    } catch (error) {
-      console.error('[AgentVibes Voice] TTS error:', error);
-      hideSpeakingNotification();
-      showErrorNotification(error.message);
-    }
+    // Split into chunks and play
+    const chunks = splitIntoChunks(text);
+    audioPlayer.playChunks(chunks);
   }
 
   // ============================================
@@ -887,7 +670,6 @@ console.log('[AgentVibes Voice] Content script injected on:', window.location.hr
       transition: all 0.2s;
     `;
 
-    // Hover effects
     button.addEventListener('mouseenter', () => {
       button.style.transform = 'scale(1.1)';
       button.style.boxShadow = '0 6px 20px rgba(239, 68, 68, 0.6)';
@@ -898,9 +680,8 @@ console.log('[AgentVibes Voice] Content script injected on:', window.location.hr
       button.style.boxShadow = '0 4px 15px rgba(239, 68, 68, 0.4)';
     });
 
-    // Click handler
     button.addEventListener('click', () => {
-      stopAudioPlayback();
+      stopAllPlayback();
     });
 
     document.body.appendChild(button);
@@ -912,51 +693,25 @@ console.log('[AgentVibes Voice] Content script injected on:', window.location.hr
       stopButton = createStopButton();
     }
     stopButton.style.display = 'flex';
-    console.log('[AgentVibes Voice] Stop button shown');
   }
 
   function hideStopButton() {
     if (stopButton) {
       stopButton.style.display = 'none';
-      console.log('[AgentVibes Voice] Stop button hidden');
-    }
-  }
-
-  function stopAudioPlayback() {
-    console.log('[AgentVibes Voice] Stopping all audio playback');
-
-    // Stop current audio
-    if (currentAudio) {
-      currentAudio.pause();
-      currentAudio = null;
-    }
-
-    // Clear the chunk queue
-    chunkQueue.clear();
-
-    // Stop all streaming processing
-    stopAllStreaming();
-
-    hideSpeakingNotification();
-
-    // Only hide stop button if no more audio is queued or playing
-    // Keep it visible while the chunk queue has items or audio is playing
-    if (!chunkQueue.isActive()) {
-      hideStopButton();
     }
   }
 
   // Keyboard shortcut: Escape key stops audio
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') {
-      stopAudioPlayback();
+      stopAllPlayback();
     }
   });
 
   // Listen for stop message from popup
   chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     if (request.type === 'STOP_SPEAKING') {
-      stopAudioPlayback();
+      stopAllPlayback();
       sendResponse({ success: true });
     }
   });
@@ -1000,7 +755,6 @@ console.log('[AgentVibes Voice] Content script injected on:', window.location.hr
         </div>
       `;
 
-      // Add animation styles if not already added
       if (!document.getElementById('agentvibes-styles')) {
         const styles = document.createElement('style');
         styles.id = 'agentvibes-styles';
@@ -1072,7 +826,6 @@ console.log('[AgentVibes Voice] Content script injected on:', window.location.hr
 
     const config = PLATFORMS[platform];
     if (!config) {
-      // Generic fallback
       processGenericMessage(element);
       return;
     }
@@ -1081,18 +834,16 @@ console.log('[AgentVibes Voice] Content script injected on:', window.location.hr
     const messageId = element.dataset.messageId || hashMessage(element.outerHTML.substring(0, 200));
     element.dataset.messageId = messageId;
 
-    // CRITICAL: Skip if this message was pre-marked as spoken during initial catalog
-    if (element.getAttribute('data-agentvibes-spoken') === 'true') {
-      return;
-    }
+    // Skip if pre-marked as spoken
+    if (element.getAttribute('data-agentvibes-spoken') === 'true') return;
 
-    // Check if this message is already fully processed
-    if (element.dataset.agentvibesStreamingComplete === 'true') {
-      return;
-    }
+    // Skip if already complete
+    if (element.dataset.agentvibesComplete === 'true') return;
 
-    // Check if message is streaming
-    const isStreaming = isMessageStreaming(element, platform);
+    // Skip if already being monitored
+    if (monitoredMessages.has(messageId)) return;
+    if (element.getAttribute('data-agentvibes-monitoring') === 'true') return;
+    if (element.getAttribute('data-agentvibes-monitoring') === 'complete') return;
 
     // Get text content
     let textElement = element;
@@ -1102,76 +853,27 @@ console.log('[AgentVibes Voice] Content script injected on:', window.location.hr
 
     const text = extractCleanText(textElement, platform);
 
-    // Only process substantial messages (more than 50 chars)
+    // Only process substantial messages
     if (text.length < MIN_TEXT_LENGTH) return;
 
-    // Check if already processed as non-streaming
+    // Check if already spoken
     const textHash = hashMessage(text);
-    if (element.dataset.agentvibesProcessed === textHash && !isStreaming) {
-      return;
-    }
+    if (spokenMessages.has(textHash)) return;
 
-    // If streaming or text is still growing, use streaming processing
-    if (isStreaming || !element.getAttribute('data-agentvibes-streaming')) {
-      // Mark that we've started streaming processing
-      element.setAttribute('data-agentvibes-streaming', 'true');
-      element.dataset.agentvibesStreamingStarted = 'true';
-
-      // Start streaming processing (polls text as it grows)
-      startStreamingProcessing(element, platform, messageId);
-
-      // Also mark as processed with current hash
-      element.dataset.agentvibesProcessed = textHash;
-    } else if (element.getAttribute('data-agentvibes-streaming') === 'complete' ||
-               element.getAttribute('data-agentvibes-streaming') === 'stopped') {
-      // Streaming is complete or was stopped - skip this message entirely
-      // The streaming handler already processed or is handling it
-      console.log('[AgentVibes Voice] Skipping non-streaming processing - message handled by streaming path');
-      return;
-    } else {
-      // Non-streaming: process immediately as before (only for messages NOT marked as streaming)
-      console.log('[AgentVibes Voice] New AI message found:', text.substring(0, 50));
-
-      // Mark as processed
-      element.dataset.agentvibesProcessed = textHash;
-
-      // Add speaker icon
-      addSpeakerIconToMessage(element, text, platform);
-
-      // Auto-speak if enabled
-      if (settings.autoSpeak && settings.enabled) {
-        console.log('[AgentVibes Voice] Sending to TTS:', text.substring(0, 50));
-        speakText(text);
-      }
-    }
+    // Start monitoring this message for completion
+    startMonitoringMessage(element, platform, messageId);
   }
 
   function processGenericMessage(element) {
-    // Skip during initial page load grace period
-    if (!isPageReady) {
-      console.log('[AgentVibes] Page not ready yet, skipping generic message');
-      return;
-    }
+    if (!isPageReady) return;
 
-    // CRITICAL: Skip if this message was pre-marked as spoken during initial catalog
-    if (element.getAttribute('data-agentvibes-spoken') === 'true') {
-      return;
-    }
+    // Skip if pre-marked as spoken
+    if (element.getAttribute('data-agentvibes-spoken') === 'true') return;
 
-    // CRITICAL: Skip if this message is being handled by streaming TTS
-    const streamingAttr = element.getAttribute('data-agentvibes-streaming');
-    if (streamingAttr === 'true' || streamingAttr === 'complete' || streamingAttr === 'stopped') {
-      console.log('[AgentVibes Voice] Skipping generic processing - message handled by streaming');
-      return;
-    }
-
-    // Generic detection for any chat-like element
     const text = extractCleanText(element, 'GENERIC');
-
-    // Only process substantial messages (50 chars minimum)
     if (text.length < MIN_TEXT_LENGTH) return;
 
-    // Detect if this looks like an AI message (heuristics)
+    // Detect if this looks like an AI message
     const isAssistant = (
       element.classList.contains('assistant') ||
       element.classList.contains('ai') ||
@@ -1181,20 +883,18 @@ console.log('[AgentVibes Voice] Content script injected on:', window.location.hr
       element.closest('[class*="assistant"], [class*="ai"]')
     );
 
-    if (!isAssistant && text.length < 100) return; // Be more conservative for generic
+    if (!isAssistant && text.length < 100) return;
 
     const textHash = hashMessage(text);
+    if (spokenMessages.has(textHash)) return;
 
-    if (element.dataset.agentvibesProcessed === textHash) return;
-    element.dataset.agentvibesProcessed = textHash;
-
-    console.log('[AgentVibes Voice] New AI message found:', text.substring(0, 50));
-
+    // For generic messages, just speak them directly (non-streaming)
+    spokenMessages.add(textHash);
     addSpeakerIconToMessage(element, text, 'GENERIC');
 
     if (settings.autoSpeak && settings.enabled) {
-      console.log('[AgentVibes Voice] Sending to TTS:', text.substring(0, 50));
-      speakText(text);
+      const chunks = splitIntoChunks(text);
+      audioPlayer.playChunks(chunks);
     }
   }
 
@@ -1206,11 +906,9 @@ console.log('[AgentVibes Voice] Content script injected on:', window.location.hr
     const config = PLATFORMS[platform];
     if (!config || !config.containerSelector) return null;
 
-    // Try to find the container
     const container = document.querySelector(config.containerSelector);
     if (container) return container;
 
-    // Fallback: look for main content areas
     const fallbacks = [
       'main',
       '[role="main"]',
@@ -1236,13 +934,10 @@ console.log('[AgentVibes Voice] Content script injected on:', window.location.hr
     }
 
     const config = PLATFORMS[platform];
-
-    // Find the specific container instead of observing entire body
     let targetNode = findContainer(platform);
 
     if (!targetNode) {
       console.log('[AgentVibes Voice] Chat container not found yet, will retry...');
-      // Retry after a delay
       setTimeout(() => setupObserver(platform), 1000);
       return;
     }
@@ -1250,13 +945,8 @@ console.log('[AgentVibes Voice] Content script injected on:', window.location.hr
     console.log('[AgentVibes Voice] MutationObserver attached to:', targetNode);
 
     observer = new MutationObserver((mutations) => {
-      console.log('[AgentVibes Voice] Mutation detected:', mutations.length, 'changes');
-      // Ignore mutations during initial page load
-      if (!isPageReady) {
-        return;
-      }
+      if (!isPageReady) return;
 
-      // Debounce: clear existing timer and set new one
       if (debounceTimer) {
         clearTimeout(debounceTimer);
       }
@@ -1287,7 +977,6 @@ console.log('[AgentVibes Voice] Content script injected on:', window.location.hr
 
     if (config && config.messageSelector) {
       const messages = document.querySelectorAll(config.messageSelector);
-      console.log(`[AgentVibes Voice] Scanning for messages (markOnly=${markOnly}), found:`, messages.length);
       messages.forEach(msg => {
         if (markOnly) {
           markMessageAsSpoken(msg, platform);
@@ -1296,7 +985,6 @@ console.log('[AgentVibes Voice] Content script injected on:', window.location.hr
         }
       });
     } else {
-      // Generic: look for chat message containers
       const genericSelectors = [
         '[class*="message"]:not([class*="user"])',
         '[class*="assistant"]:not([class*="user"])',
@@ -1330,48 +1018,35 @@ console.log('[AgentVibes Voice] Content script injected on:', window.location.hr
   function markMessageAsSpoken(element, platform) {
     const config = PLATFORMS[platform];
 
-    // Get text content
     let textElement = element;
     if (config && config.textSelector) {
       textElement = element.querySelector(config.textSelector) || element;
     }
 
     const text = extractCleanText(textElement, platform);
-
-    // Only mark substantial messages (more than 50 chars)
     if (text.length < MIN_TEXT_LENGTH) return;
 
-    // Generate message ID
     const messageId = element.dataset.messageId || hashMessage(element.outerHTML.substring(0, 200));
     element.dataset.messageId = messageId;
 
-    // Mark as spoken using data attribute
     element.setAttribute('data-agentvibes-spoken', 'true');
 
-    // Also add to spokenMessages Set for extra safety
     const textHash = hashMessage(text);
     spokenMessages.add(textHash);
-
-    // Mark as processed to prevent re-processing
     element.dataset.agentvibesProcessed = textHash;
-
-    console.log('[AgentVibes Voice] Pre-marked existing message as spoken:', text.substring(0, 50));
   }
 
   function markAllExistingMessagesAsSpoken(platform) {
-    console.log('[AgentVibes Voice] Marking all existing messages as spoken (initial catalog)...');
+    console.log('[AgentVibes Voice] Marking all existing messages as spoken...');
 
-    // Temporarily set isPageReady to true so detection works
     const wasPageReady = isPageReady;
     isPageReady = true;
 
-    // Scan and mark all existing messages without speaking them
     detectAndProcessMessages(platform, { markOnly: true });
 
-    // Restore original state
     isPageReady = wasPageReady;
 
-    console.log('[AgentVibes Voice] Finished cataloging existing messages. Will only speak NEW messages.');
+    console.log('[AgentVibes Voice] Finished cataloging existing messages.');
   }
 
   // ============================================
@@ -1393,7 +1068,6 @@ console.log('[AgentVibes Voice] Content script injected on:', window.location.hr
 
       console.log('[AgentVibes Voice] Enabled:', settings.enabled, 'AutoSpeak:', settings.autoSpeak);
 
-      // Restore spoken messages from storage
       if (result.spokenMessages) {
         Object.keys(result.spokenMessages).forEach(hash => {
           spokenMessages.add(hash);
@@ -1428,29 +1102,22 @@ console.log('[AgentVibes Voice] Content script injected on:', window.location.hr
   function init() {
     currentPlatform = detectPlatform();
     console.log(`[AgentVibes Voice] Detected platform: ${currentPlatform}`);
-    console.log('[AgentVibes Voice] Platform hostname:', window.location.hostname);
+    console.log('[AgentVibes Voice] Simplified "wait then speak" mode active');
 
     loadSettings().then(() => {
-      // Wait 3 seconds before setting up observer
       console.log('[AgentVibes Voice] Waiting 3 seconds before activating observer...');
 
       setTimeout(() => {
         setupObserver(currentPlatform);
 
-        // Set page as ready after initial grace period
         setTimeout(() => {
           console.log('[AgentVibes Voice] Grace period ended - cataloging existing messages...');
 
-          // CRITICAL: First, mark ALL existing messages as "already spoken"
-          // This ensures old messages won't be spoken after page refresh
           markAllExistingMessagesAsSpoken(currentPlatform);
 
-          // Now enable message processing for NEW messages only
           isPageReady = true;
           console.log('[AgentVibes Voice] Page ready - will only speak NEW messages');
 
-          // Do a final scan to catch any messages that appeared during the grace period
-          // but weren't present at the start of this timeout
           setTimeout(() => {
             detectAndProcessMessages(currentPlatform);
           }, 500);
@@ -1474,21 +1141,18 @@ console.log('[AgentVibes Voice] Content script injected on:', window.location.hr
       lastUrl = url;
       console.log('[AgentVibes Voice] URL changed, reinitializing...');
 
-      // Reset state
       isInitialized = false;
       isPageReady = false;
 
-      // Stop all streaming when navigating away
-      stopAllStreaming();
+      stopAllPlayback();
 
-      // Delay to let new page render, then re-init
       setTimeout(() => {
         if (observer) {
           observer.disconnect();
           observer = null;
         }
         init();
-      }, 2000); // 2 second delay after navigation
+      }, 2000);
     }
   }).observe(document, { subtree: true, childList: true });
 
