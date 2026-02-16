@@ -1,3 +1,5 @@
+console.log('[AgentVibes Voice] Content script injected on:', window.location.href);
+
 // AgentVibes Voice - Content Script
 // Detects AI chat messages and adds voice output functionality
 // Supports: ChatGPT, Claude, Genspark, and generic chat interfaces
@@ -248,7 +250,7 @@
     // Check cooldown (5 seconds between speaks)
     const now = Date.now();
     if (!options.isReplay && (now - lastSpeakTime) < SPEAK_COOLDOWN) {
-      console.log('[AgentVibes] Speak cooldown active, skipping');
+      console.log('[AgentVibes Voice] Speak cooldown active, skipping');
       return;
     }
     
@@ -256,7 +258,7 @@
     
     // Skip if already spoken (unless manual replay)
     if (!options.isReplay && spokenMessages.has(textHash)) {
-      console.log('[AgentVibes] Skipping already spoken message');
+      console.log('[AgentVibes Voice] Skipping already spoken message');
       return;
     }
     
@@ -296,7 +298,7 @@
         };
         
         currentAudio.onerror = () => {
-          console.error('[AgentVibes] Audio playback failed');
+          console.error('[AgentVibes Voice] Audio playback failed');
           currentAudio = null;
           hideSpeakingNotification();
           showErrorNotification('Audio playback failed');
@@ -307,7 +309,7 @@
         throw new Error(response.error || 'TTS failed');
       }
     } catch (error) {
-      console.error('[AgentVibes] TTS error:', error);
+      console.error('[AgentVibes Voice] TTS error:', error);
       hideSpeakingNotification();
       showErrorNotification(error.message);
     }
@@ -418,7 +420,7 @@
   function processMessageElement(element, platform) {
     // Skip during initial page load grace period
     if (!isPageReady) {
-      console.log('[AgentVibes] Page not ready yet, skipping message');
+      console.log('[AgentVibes Voice] Page not ready yet, skipping message');
       return;
     }
     
@@ -450,18 +452,21 @@
     // Skip if already processed
     if (element.dataset.agentvibesProcessed === textHash) return;
     
+    console.log('[AgentVibes Voice] New AI message found:', text.substring(0, 50));
+
     // Mark as processed
     element.dataset.agentvibesProcessed = textHash;
-    
+
     // Add speaker icon
     addSpeakerIconToMessage(element, text, platform);
     
     // Auto-speak if enabled
     if (settings.autoSpeak && settings.enabled) {
+      console.log('[AgentVibes Voice] Sending to TTS:', text.substring(0, 50));
       speakText(text);
     }
   }
-  
+
   function processGenericMessage(element) {
     // Skip during initial page load grace period
     if (!isPageReady) {
@@ -492,13 +497,16 @@
     if (element.dataset.agentvibesProcessed === textHash) return;
     element.dataset.agentvibesProcessed = textHash;
     
+    console.log('[AgentVibes Voice] New AI message found:', text.substring(0, 50));
+
     addSpeakerIconToMessage(element, text, 'GENERIC');
-    
+
     if (settings.autoSpeak && settings.enabled) {
+      console.log('[AgentVibes Voice] Sending to TTS:', text.substring(0, 50));
       speakText(text);
     }
   }
-  
+
   // ============================================
   // MutationObserver Setup
   // ============================================
@@ -542,15 +550,16 @@
     let targetNode = findContainer(platform);
     
     if (!targetNode) {
-      console.log('[AgentVibes] Chat container not found yet, will retry...');
+      console.log('[AgentVibes Voice] Chat container not found yet, will retry...');
       // Retry after a delay
       setTimeout(() => setupObserver(platform), 1000);
       return;
     }
     
-    console.log('[AgentVibes] Observer attached to container:', targetNode);
-    
+    console.log('[AgentVibes Voice] MutationObserver attached to:', targetNode);
+
     observer = new MutationObserver((mutations) => {
+      console.log('[AgentVibes Voice] Mutation detected:', mutations.length, 'changes');
       // Ignore mutations during initial page load
       if (!isPageReady) {
         return;
@@ -583,9 +592,10 @@
   
   function detectAndProcessMessages(platform) {
     const config = PLATFORMS[platform];
-    
+
     if (config && config.messageSelector) {
       const messages = document.querySelectorAll(config.messageSelector);
+      console.log('[AgentVibes Voice] Scanning for messages, found:', messages.length);
       messages.forEach(msg => processMessageElement(msg, platform));
     } else {
       // Generic: look for chat message containers
@@ -625,7 +635,9 @@
         voice: result.voice || null,
         autoSpeak: result.autoSpeak !== false
       };
-      
+
+      console.log('[AgentVibes Voice] Enabled:', settings.enabled, 'AutoSpeak:', settings.autoSpeak);
+
       // Restore spoken messages from storage
       if (result.spokenMessages) {
         Object.keys(result.spokenMessages).forEach(hash => {
@@ -633,7 +645,7 @@
         });
       }
     } catch (error) {
-      console.error('[AgentVibes] Failed to load settings:', error);
+      console.error('[AgentVibes Voice] Failed to load settings:', error);
     }
   }
   
@@ -647,9 +659,9 @@
     }
     if (request.type === 'SERVER_STATUS_CHANGE') {
       if (request.online) {
-        console.log('[AgentVibes] Server is online');
+        console.log('[AgentVibes Voice] Server is online');
       } else {
-        console.log('[AgentVibes] Server is offline');
+        console.log('[AgentVibes Voice] Server is offline');
       }
     }
   });
@@ -660,11 +672,12 @@
   
   function init() {
     currentPlatform = detectPlatform();
-    console.log(`[AgentVibes] Detected platform: ${currentPlatform}`);
+    console.log(`[AgentVibes Voice] Detected platform: ${currentPlatform}`);
+    console.log('[AgentVibes Voice] Platform hostname:', window.location.hostname);
     
     loadSettings().then(() => {
       // Wait 3 seconds before setting up observer
-      console.log('[AgentVibes] Waiting 3 seconds before activating observer...');
+      console.log('[AgentVibes Voice] Waiting 3 seconds before activating observer...');
       
       setTimeout(() => {
         setupObserver(currentPlatform);
@@ -672,7 +685,8 @@
         // Set page as ready after initial grace period
         setTimeout(() => {
           isPageReady = true;
-          console.log('[AgentVibes] Page ready - processing messages enabled');
+          console.log('[AgentVibes Voice] Grace period ended, observer active');
+          console.log('[AgentVibes Voice] Page ready - processing messages enabled');
           
           // Do initial scan now that page is ready
           detectAndProcessMessages(currentPlatform);
@@ -694,7 +708,7 @@
     const url = location.href;
     if (url !== lastUrl) {
       lastUrl = url;
-      console.log('[AgentVibes] URL changed, reinitializing...');
+      console.log('[AgentVibes Voice] URL changed, reinitializing...');
       
       // Reset state
       isInitialized = false;
