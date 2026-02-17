@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "AgentVibes Voice",
-  "version": "1.0.0",
-  "description": "Add voice output to AI chat windows. Speaks ChatGPT, Claude, and Genspark responses aloud using AgentVibes TTS.",
+  "version": "1.1.0",
+  "description": "Add voice output to AI chat windows. Speaks ChatGPT, Claude, and Genspark responses aloud using Microsoft Edge TTS (Fast Mode) or local AgentVibes TTS server.",
   "permissions": [
     "activeTab",
     "storage"
@@ -15,7 +15,8 @@
     "*://chat.openai.com/*",
     "*://www.chat.openai.com/*",
     "http://localhost/*",
-    "https://localhost/*"
+    "https://localhost/*",
+    "wss://speech.platform.bing.com/*"
   ],
   "content_scripts": [
     {
@@ -50,6 +51,7 @@
     "48": "icons/icon48.png",
     "128": "icons/icon128.png"
   },
+
   "browser_specific_settings": {
     "gecko": {
       "id": "agentvibes@fifthaveai.com",

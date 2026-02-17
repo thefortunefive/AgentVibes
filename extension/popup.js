@@ -29,7 +29,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     fastMode: true,  // Default to Fast Mode
     volume: 1.0,
     rate: 1.0,
-    voice: null
+    voice: 'en-US-AndrewNeural'  // Default Edge TTS voice
   };
   let isServerOnline = false;
   let voices = [];
@@ -52,7 +52,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         fastMode: result.fastMode !== false,  // Default to true (Fast Mode)
         volume: result.volume || 1.0,
         rate: result.rate || 1.0,
-        voice: result.voice || null
+        voice: result.voice || 'en-US-AndrewNeural'  // Default Edge TTS voice
       };
 
       // Update UI
@@ -70,7 +70,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       // Update footer text based on mode
       updateFooterText();
 
-      console.log('[AgentVibes Voice] Settings loaded - Fast Mode:', settings.fastMode);
+      console.log('[AgentVibes Voice] Settings loaded - Fast Mode:', settings.fastMode, 'Voice:', settings.voice);
     } catch (error) {
       console.error('Failed to load settings:', error);
     }
@@ -130,8 +130,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   function updateFooterText() {
     if (settings.fastMode) {
-      footerText.innerHTML = 'Fast Mode active - using browser TTS';
-      statusText.textContent = 'Fast Mode (Browser TTS)';
+      footerText.innerHTML = 'Fast Mode active - Microsoft Edge TTS';
+      statusText.textContent = 'Fast Mode (Edge TTS)';
       statusDot.className = 'status-dot online';
     } else {
       footerText.innerHTML = 'Requires <a href="http://localhost:3000" target="_blank">AgentVibes server</a> running locally';
@@ -140,7 +140,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   function updateUIBasedOnMode() {
     if (settings.fastMode) {
-      // Fast Mode: Server optional, voices from browser
+      // Fast Mode: Server optional, voices from Edge TTS
       testBtn.disabled = false;
       voiceSelect.disabled = false;
       updateFooterText();
@@ -197,41 +197,46 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   // ============================================
-  // Fetch Voices (Browser or Server)
+  // Fetch Voices (Edge TTS or Server)
   // ============================================
 
-  async function fetchBrowserVoices() {
-    // Get browser voices from a content script
+  async function fetchEdgeVoices() {
+    // Get Edge TTS voices from a content script
     try {
       const tabs = await chrome.tabs.query({
         url: ['https://chat.openai.com/*', 'https://claude.ai/*', 'https://genspark.ai/*', 'https://chatgpt.com/*']
       });
 
       if (tabs.length > 0) {
-        // Request voices from the first available tab
-        const response = await chrome.tabs.sendMessage(tabs[0].id, { type: 'GET_BROWSER_VOICES' });
+        // Request Edge TTS voices from the first available tab
+        const response = await chrome.tabs.sendMessage(tabs[0].id, { type: 'GET_EDGE_VOICES' });
         if (response.success && response.voices) {
           return response.voices;
         }
       }
     } catch (error) {
-      console.log('[AgentVibes Voice] No content script available, using fallback voice list');
+      console.log('[AgentVibes Voice] No content script available for Edge voices, using fallback');
     }
 
-    // Fallback: use chrome.tts if available (Chrome extension API)
-    if (chrome.tts) {
-      return new Promise((resolve) => {
-        chrome.tts.getVoices((ttsVoices) => {
-          resolve(ttsVoices.map(v => ({
-            name: v.voiceName,
-            lang: v.lang,
-            default: v.voiceName.toLowerCase().includes('default')
-          })));
-        });
-      });
-    }
-
-    return [];
+    // Fallback: use hardcoded list
+    return [
+      { name: 'en-US-AndrewNeural', locale: 'en-US', gender: 'Male', displayName: 'Andrew (US)' },
+      { name: 'en-US-JennyNeural', locale: 'en-US', gender: 'Female', displayName: 'Jenny (US)' },
+      { name: 'en-US-AriaNeural', locale: 'en-US', gender: 'Female', displayName: 'Aria (US)' },
+      { name: 'en-US-GuyNeural', locale: 'en-US', gender: 'Male', displayName: 'Guy (US)' },
+      { name: 'en-US-AvaNeural', locale: 'en-US', gender: 'Female', displayName: 'Ava (US)' },
+      { name: 'en-US-BrianNeural', locale: 'en-US', gender: 'Male', displayName: 'Brian (US)' },
+      { name: 'en-US-ChristopherNeural', locale: 'en-US', gender: 'Male', displayName: 'Christopher (US)' },
+      { name: 'en-US-EmmaNeural', locale: 'en-US', gender: 'Female', displayName: 'Emma (US)' },
+      { name: 'en-US-EricNeural', locale: 'en-US', gender: 'Male', displayName: 'Eric (US)' },
+      { name: 'en-US-MichelleNeural', locale: 'en-US', gender: 'Female', displayName: 'Michelle (US)' },
+      { name: 'en-US-RogerNeural', locale: 'en-US', gender: 'Male', displayName: 'Roger (US)' },
+      { name: 'en-US-SteffanNeural', locale: 'en-US', gender: 'Male', displayName: 'Steffan (US)' },
+      { name: 'en-GB-SoniaNeural', locale: 'en-GB', gender: 'Female', displayName: 'Sonia (UK)' },
+      { name: 'en-GB-RyanNeural', locale: 'en-GB', gender: 'Male', displayName: 'Ryan (UK)' },
+      { name: 'en-AU-NatashaNeural', locale: 'en-AU', gender: 'Female', displayName: 'Natasha (AU)' },
+      { name: 'en-AU-WilliamNeural', locale: 'en-AU', gender: 'Male', displayName: 'William (AU)' }
+    ];
   }
 
   async function fetchVoices() {
@@ -242,9 +247,9 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     try {
       if (settings.fastMode) {
-        // Fast Mode: Get voices from browser
-        const browserVoices = await fetchBrowserVoices();
-        voices = browserVoices;
+        // Fast Mode: Get Edge TTS voices
+        const edgeVoices = await fetchEdgeVoices();
+        voices = edgeVoices;
 
         // Clear and populate select
         voiceSelect.innerHTML = '';
@@ -252,41 +257,33 @@ document.addEventListener('DOMContentLoaded', async () => {
         // Add default option
         const defaultOption = document.createElement('option');
         defaultOption.value = '';
-        defaultOption.textContent = `Default Voice (${voices.length} browser voices)`;
+        defaultOption.textContent = `Select Edge TTS Voice (${voices.length} voices)`;
         voiceSelect.appendChild(defaultOption);
 
-        // Sort voices - prefer natural/neural voices
+        // Sort voices - prefer US English, then GB, then AU
         const sortedVoices = voices.sort((a, b) => {
-          const aNatural = a.name.toLowerCase().includes('natural') ||
-                           a.name.toLowerCase().includes('neural') ||
-                           a.name.toLowerCase().includes('premium') ||
-                           a.name.toLowerCase().includes('enhanced');
-          const bNatural = b.name.toLowerCase().includes('natural') ||
-                           b.name.toLowerCase().includes('neural') ||
-                           b.name.toLowerCase().includes('premium') ||
-                           b.name.toLowerCase().includes('enhanced');
+          const aIsUS = a.locale === 'en-US';
+          const bIsUS = b.locale === 'en-US';
+          const aIsGB = a.locale === 'en-GB';
+          const bIsGB = b.locale === 'en-GB';
 
-          if (aNatural && !bNatural) return -1;
-          if (!aNatural && bNatural) return 1;
+          if (aIsUS && !bIsUS) return -1;
+          if (!aIsUS && bIsUS) return 1;
+          if (aIsGB && !bIsGB) return -1;
+          if (!aIsGB && bIsGB) return 1;
 
-          // Prefer English
-          const aEnglish = a.lang && a.lang.toLowerCase().startsWith('en');
-          const bEnglish = b.lang && b.lang.toLowerCase().startsWith('en');
-          if (aEnglish && !bEnglish) return -1;
-          if (!aEnglish && bEnglish) return 1;
-
-          return a.name.localeCompare(b.name);
+          return a.displayName.localeCompare(b.displayName);
         });
 
         // Add voice options
         sortedVoices.forEach(voice => {
           const option = document.createElement('option');
           option.value = voice.name;
-          option.textContent = `${voice.name} (${voice.lang})`;
+          option.textContent = `${voice.displayName} - ${voice.gender}`;
           voiceSelect.appendChild(option);
         });
 
-        console.log('[AgentVibes Voice] Loaded', voices.length, 'browser voices for Fast Mode');
+        console.log('[AgentVibes Voice] Loaded', voices.length, 'Edge TTS voices for Fast Mode');
       } else {
         // Server Mode: Get voices from server via background script
         const response = await chrome.runtime.sendMessage({ type: 'GET_VOICES' });
@@ -339,25 +336,26 @@ document.addEventListener('DOMContentLoaded', async () => {
       currentAudio = null;
     }
 
-    const testText = "Hello! This is a test of the AgentVibes voice system. Your AI chat responses will be spoken aloud like this.";
+    const testText = "Hello! This is a test of the AgentVibes Edge TTS voice system. Your AI chat responses will be spoken aloud like this.";
 
     try {
       if (settings.fastMode) {
-        // Fast Mode: Use browser TTS via content script
+        // Fast Mode: Use Edge TTS via content script
         const tabs = await chrome.tabs.query({
           url: ['https://chat.openai.com/*', 'https://claude.ai/*', 'https://genspark.ai/*', 'https://chatgpt.com/*']
         });
 
         if (tabs.length > 0) {
-          // Send TTS request to content script
+          // Send Edge TTS request to content script
           await chrome.tabs.sendMessage(tabs[0].id, {
-            type: 'TEST_BROWSER_TTS',
+            type: 'TEST_EDGE_TTS',
             text: testText,
             voice: settings.voice,
-            volume: settings.volume
+            volume: settings.volume,
+            rate: settings.rate
           });
 
-          // Browser TTS plays immediately, no waiting
+          // Edge TTS plays immediately, no waiting
           testBtn.disabled = false;
           testLoading.style.display = 'none';
           testBtn.textContent = 'Test Again';
@@ -488,7 +486,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   });
 
   voiceSelect.addEventListener('change', async () => {
-    const newVoice = voiceSelect.value || null;
+    const newVoice = voiceSelect.value || 'en-US-AndrewNeural';
     settings.voice = newVoice;
     await saveSettings();
 
@@ -557,27 +555,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     refreshVoicesBtn.classList.add('spinning');
     voices = [];  // Clear cache
 
-    // In Fast Mode, retry voice fetch to give page-context script time to respond
-    if (settings.fastMode) {
-      // First attempt
-      await fetchVoices();
-
-      // If no voices loaded, retry after delay (page-context script may need time)
-      if (voices.length === 0) {
-        console.log('[AgentVibes Voice] No voices yet, retrying in 500ms...');
-        await new Promise(resolve => setTimeout(resolve, 500));
-        await fetchVoices();
-      }
-
-      // Final retry after 1 second if still no voices
-      if (voices.length === 0) {
-        console.log('[AgentVibes Voice] Still no voices, final retry in 1s...');
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        await fetchVoices();
-      }
-    } else {
-      await fetchVoices();
-    }
+    await fetchVoices();
 
     setTimeout(() => refreshVoicesBtn.classList.remove('spinning'), 500);
   });
