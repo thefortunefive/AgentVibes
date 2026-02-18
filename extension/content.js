@@ -248,10 +248,14 @@ console.log('[AgentVibes Voice] Content script injected on:', window.location.hr
   }
 
   // ============================================
-  // Edge TTS (Fast Mode) Implementation
+  // Edge TTS (Fast Mode) Implementation - Now in Background Script
   // ============================================
+  // EdgeTTSClient class moved to background.js to avoid CSP issues
+  // Content script now uses message-based communication with background
 
-  class EdgeTTSClient {
+  // ============================================
+  // Fast Mode TTS Functions (Background Script Communication)
+  // ============================================
     constructor() {
       this.ws = null;
       this.voice = 'en-US-AndrewNeural';
@@ -542,36 +546,67 @@ console.log('[AgentVibes Voice] Content script injected on:', window.location.hr
   }
 
   function speakWithEdgeTTS(text, voiceName, rate, volume) {
-    return new Promise((resolve, reject) => {
-      const client = initEdgeTTSClient();
-      
-      // Set voice
-      const voiceToUse = voiceName || settings.voice || 'en-US-AndrewNeural';
-      client.setVoice(voiceToUse);
+    return new Promise(async (resolve, reject) => {
+      try {
+        // Show UI
+        showSpeakingNotification();
+        showStopButton();
+        isSpeakingEdgeTTS = true;
 
-      // Show UI
-      showSpeakingNotification();
-      showStopButton();
-      isSpeakingEdgeTTS = true;
-
-      // Speak the text
-      client.speak(text, rate || settings.rate, volume || settings.volume)
-        .then(() => {
-          resolve();
-        })
-        .catch((error) => {
-          isSpeakingEdgeTTS = false;
-          hideSpeakingNotification();
-          hideStopButton();
-          reject(error);
+        // Send message to background script for TTS synthesis
+        const voiceToUse = voiceName || settings.voice || 'en-US-AndrewNeural';
+        const response = await browser.runtime.sendMessage({
+          type: 'EDGE_TTS_SPEAK',
+          text: text,
+          voice: voiceToUse,
+          rate: rate || settings.rate,
+          volume: volume || settings.volume
         });
+
+        if (response.success) {
+          // Play the returned audio data URL
+          const audio = new Audio(response.dataUrl);
+          audio.volume = settings.volume;
+          currentAudio = audio;
+
+          audio.onended = () => {
+            currentAudio = null;
+            isSpeakingEdgeTTS = false;
+            hideSpeakingNotification();
+            hideStopButton();
+            resolve();
+          };
+
+          audio.onerror = (error) => {
+            currentAudio = null;
+            isSpeakingEdgeTTS = false;
+            hideSpeakingNotification();
+            hideStopButton();
+            reject(new Error('Audio playback failed'));
+          };
+
+          await audio.play();
+        } else {
+          throw new Error(response.error || 'TTS synthesis failed');
+        }
+      } catch (error) {
+        isSpeakingEdgeTTS = false;
+        hideSpeakingNotification();
+        hideStopButton();
+        reject(error);
+      }
     });
   }
 
   function stopEdgeTTS() {
-    if (edgeTTSClient) {
-      edgeTTSClient.stop();
+    // Stop audio playback
+    if (currentAudio) {
+      currentAudio.pause();
+      currentAudio = null;
     }
+    
+    // Send stop message to background script
+    browser.runtime.sendMessage({ type: 'EDGE_TTS_STOP' });
     isSpeakingEdgeTTS = false;
   }
 
