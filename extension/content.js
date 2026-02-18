@@ -839,6 +839,11 @@ console.log('[AgentVibes Voice] Content script injected on:', window.location.hr
   function stopAllPlayback() {
     console.log('[AgentVibes Voice] Stopping all playback...');
 
+    // Kill browser's native speech synthesis queue completely
+    if (window.speechSynthesis) {
+      window.speechSynthesis.cancel();
+    }
+
     // Stop all monitoring intervals
     for (const [messageId, state] of monitoredMessages) {
       if (state.checkInterval) {
@@ -862,11 +867,13 @@ console.log('[AgentVibes Voice] Content script injected on:', window.location.hr
     // Stop current audio
     if (currentAudio) {
       currentAudio.pause();
+      currentAudio.currentTime = 0;
       currentAudio = null;
     }
 
-    // Stop Edge TTS
+    // Stop Edge TTS and reset state
     stopEdgeTTS();
+    isSpeakingEdgeTTS = false;
 
     hideSpeakingNotification();
     hideStopButton();
@@ -1314,8 +1321,16 @@ console.log('[AgentVibes Voice] Content script injected on:', window.location.hr
     return button;
   }
 
-  function toggleMute() {
+  async function toggleMute() {
     isMuted = !isMuted;
+
+    // Persist mute state to storage
+    try {
+      await chrome.storage.local.set({ isMuted });
+      console.log('[AgentVibes Voice] Mute state saved:', isMuted);
+    } catch (error) {
+      console.error('[AgentVibes Voice] Failed to save mute state:', error);
+    }
 
     if (isMuted) {
       // Stop current audio immediately when muting
@@ -1781,7 +1796,7 @@ console.log('[AgentVibes Voice] Content script injected on:', window.location.hr
   async function loadSettings() {
     try {
       const result = await chrome.storage.local.get([
-        'enabled', 'volume', 'rate', 'voice', 'autoSpeak', 'fastMode', 'spokenMessages'
+        'enabled', 'volume', 'rate', 'voice', 'autoSpeak', 'fastMode', 'spokenMessages', 'isMuted'
       ]);
 
       settings = {
@@ -1792,6 +1807,24 @@ console.log('[AgentVibes Voice] Content script injected on:', window.location.hr
         autoSpeak: result.autoSpeak !== false,
         fastMode: result.fastMode !== false  // Default to Fast Mode
       };
+
+      // Load and apply persisted mute state
+      if (result.isMuted) {
+        isMuted = true;
+        // Update mute button appearance without triggering side effects
+        if (!muteButton) muteButton = createMuteButton();
+        muteButton.style.background = '#52525b';
+        muteButton.style.boxShadow = '0 4px 15px rgba(82, 82, 91, 0.4)';
+        muteButton.title = 'Unmute AgentVibes Voice';
+        muteButton.innerHTML = `
+          <svg id="agentvibes-mute-icon" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2">
+            <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
+            <line x1="23" y1="9" x2="17" y2="15"/>
+            <line x1="17" y1="9" x2="23" y2="15"/>
+          </svg>
+        `;
+        console.log('[AgentVibes Voice] Restored muted state from storage');
+      }
 
       console.log('[AgentVibes Voice] Settings loaded - Fast Mode:', settings.fastMode, 'Voice:', settings.voice);
 
