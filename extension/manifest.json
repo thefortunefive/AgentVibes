@@ -5,7 +5,8 @@
   "description": "Add voice output to AI chat windows. Speaks ChatGPT, Claude, and Genspark responses aloud using Microsoft Edge TTS (Fast Mode) or local AgentVibes TTS server.",
   "permissions": [
     "activeTab",
-    "storage"
+    "storage",
+    "wss://speech.platform.bing.com/*"
   ],
   "host_permissions": [
     "*://genspark.ai/*",
@@ -35,8 +36,7 @@
     }
   ],
   "background": {
-    "scripts": ["background.js"],
-    "service_worker": "background.js"
+    "scripts": ["background.js"]
   },
   "action": {
     "default_popup": "popup.html",

@@ -43,6 +43,8 @@ console.log('[AgentVibes Voice] Content script injected on:', window.location.hr
   let spokenMessages = new Set();
   let currentAudio = null;
   let stopButton = null;
+  let muteButton = null;
+  let isMuted = false;
   let observer = null;
   let isInitialized = false;
   let isPageReady = false;
@@ -1033,6 +1035,8 @@ console.log('[AgentVibes Voice] Content script injected on:', window.location.hr
 
   function playText(text, options = {}) {
     if (!settings.enabled) return;
+    // Honour mute state for auto-speak; replays via speaker icon are always allowed
+    if (isMuted && !options.isReplay) return;
 
     if (settings.fastMode) {
       // Fast Mode: Use ChunkQueue + Edge TTS with sentence batching
@@ -1432,6 +1436,110 @@ console.log('[AgentVibes Voice] Content script injected on:', window.location.hr
   }
 
   // ============================================
+  // Mute / Unmute Toggle
+  // ============================================
+
+  function createMuteButton() {
+    const button = document.createElement('div');
+    button.id = 'agentvibes-mute-btn';
+    button.title = 'Mute AgentVibes Voice';
+    // Speaker icon (unmuted state)
+    button.innerHTML = `
+      <svg id="agentvibes-mute-icon" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2">
+        <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
+        <path d="M19.07 4.93a10 10 0 0 1 0 14.14"/>
+        <path d="M15.54 8.46a5 5 0 0 1 0 7.07"/>
+      </svg>
+    `;
+    button.style.cssText = `
+      position: fixed;
+      bottom: 80px;
+      right: 20px;
+      width: 50px;
+      height: 50px;
+      background: #6366f1;
+      border-radius: 50%;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      z-index: 10001;
+      box-shadow: 0 4px 15px rgba(99, 102, 241, 0.4);
+      transition: all 0.2s;
+    `;
+
+    button.addEventListener('mouseenter', () => {
+      button.style.transform = 'scale(1.1)';
+    });
+
+    button.addEventListener('mouseleave', () => {
+      button.style.transform = 'scale(1)';
+    });
+
+    button.addEventListener('click', () => {
+      toggleMute();
+    });
+
+    document.body.appendChild(button);
+    return button;
+  }
+
+  function toggleMute() {
+    isMuted = !isMuted;
+
+    if (isMuted) {
+      // Stop current audio immediately when muting
+      stopAllPlayback();
+
+      // Update button appearance - muted (crossed-out speaker, grey)
+      if (muteButton) {
+        muteButton.style.background = '#52525b';
+        muteButton.style.boxShadow = '0 4px 15px rgba(82, 82, 91, 0.4)';
+        muteButton.title = 'Unmute AgentVibes Voice';
+        muteButton.innerHTML = `
+          <svg id="agentvibes-mute-icon" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2">
+            <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
+            <line x1="23" y1="9" x2="17" y2="15"/>
+            <line x1="17" y1="9" x2="23" y2="15"/>
+          </svg>
+        `;
+      }
+      // Keep mute button visible while muted so user can unmute
+      showMuteButton();
+      console.log('[AgentVibes Voice] Muted - auto-speak silenced');
+    } else {
+      // Unmuted - restore purple speaker icon
+      if (muteButton) {
+        muteButton.style.background = '#6366f1';
+        muteButton.style.boxShadow = '0 4px 15px rgba(99, 102, 241, 0.4)';
+        muteButton.title = 'Mute AgentVibes Voice';
+        muteButton.innerHTML = `
+          <svg id="agentvibes-mute-icon" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2">
+            <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
+            <path d="M19.07 4.93a10 10 0 0 1 0 14.14"/>
+            <path d="M15.54 8.46a5 5 0 0 1 0 7.07"/>
+          </svg>
+        `;
+      }
+      hideMuteButton();
+      console.log('[AgentVibes Voice] Unmuted - auto-speak restored');
+    }
+  }
+
+  function showMuteButton() {
+    if (!muteButton) {
+      muteButton = createMuteButton();
+    }
+    muteButton.style.display = 'flex';
+  }
+
+  function hideMuteButton() {
+    if (muteButton) {
+      muteButton.style.display = 'none';
+    }
+  }
+
+  // ============================================
   // Stop/Mute Button
   // ============================================
 
@@ -1483,18 +1591,33 @@ console.log('[AgentVibes Voice] Content script injected on:', window.location.hr
       stopButton = createStopButton();
     }
     stopButton.style.display = 'flex';
+    // Show mute button alongside stop button
+    showMuteButton();
   }
 
   function hideStopButton() {
     if (stopButton) {
       stopButton.style.display = 'none';
     }
+    // Keep mute button visible when muted (so user can unmute); hide when unmuted
+    if (!isMuted) {
+      hideMuteButton();
+    }
   }
 
-  // Keyboard shortcut: Escape key stops audio
+  // Keyboard shortcut: Escape stops audio; M toggles mute
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') {
       stopAllPlayback();
+    }
+    // M key toggles mute (only when focus is not in a text input)
+    if (e.key === 'm' && !e.ctrlKey && !e.metaKey && !e.altKey) {
+      const tag = document.activeElement && document.activeElement.tagName;
+      const isEditable = document.activeElement && document.activeElement.isContentEditable;
+      if (tag !== 'INPUT' && tag !== 'TEXTAREA' && !isEditable) {
+        if (!muteButton) muteButton = createMuteButton();
+        toggleMute();
+      }
     }
   });
 
