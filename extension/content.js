@@ -67,6 +67,11 @@ console.log('[AgentVibes Voice] Content script injected on:', window.location.hr
 
   // Track sentences spoken in streaming mode (for fast mode)
   const spokenSentences = new Set();
+  
+  // Sentence-level tracking for proper streaming
+  let sentenceArray = [];
+  let nextSpeakIndex = 0;
+  let currentMessageId = null;
 
   // ============================================
   // Edge TTS Voice List
@@ -780,6 +785,25 @@ console.log('[AgentVibes Voice] Content script injected on:', window.location.hr
   const audioPlayer = new ParallelAudioPlayer();
 
   // ============================================
+  // speakText - queue a single sentence for TTS
+  // ============================================
+
+  function speakText(sentence) {
+    if (!settings.enabled || isMuted) return;
+    if (!sentence || sentence.trim().length === 0) return;
+
+    if (settings.fastMode) {
+      // Fast Mode: feed into ChunkQueue for batched Edge TTS
+      chunkQueue.addText(sentence, false);
+    } else {
+      // Server Mode: feed into parallel audio player
+      audioPlayer.playText(sentence).catch(error => {
+        console.error('[AgentVibes Voice] speakText server TTS error:', error);
+      });
+    }
+  }
+
+  // ============================================
   // Unified Play Function (Fast Mode or Server)
   // ============================================
 
@@ -823,6 +847,12 @@ console.log('[AgentVibes Voice] Content script injected on:', window.location.hr
     }
     monitoredMessages.clear();
 
+    // Clear sentence tracking
+    spokenSentences.clear();
+    sentenceArray = [];
+    nextSpeakIndex = 0;
+    currentMessageId = null;
+
     // Clear chunk queue
     chunkQueue.clear();
 
@@ -862,6 +892,59 @@ console.log('[AgentVibes Voice] Content script injected on:', window.location.hr
       hash = hash & hash;
     }
     return hash.toString(16);
+  }
+
+  /**
+   * Split text into sentences with better handling of edge cases
+   * Protects decimals, abbreviations, and handles multiple punctuation
+   */
+  function splitIntoSentences(text) {
+    if (!text || !text.trim()) return [];
+    
+    // Protect decimal numbers and common abbreviations
+    let protectedText = text;
+    
+    // Protect decimal numbers (e.g., "3.14", "2.5%")
+    protectedText = protectedText.replace(/\d+\.\d+/g, match => `{{DECIMAL_${match.replace('.', '_')}}}`);
+    
+    // Protect common abbreviations
+    const abbreviations = [
+      /Mr\./g, /Mrs\./g, /Ms\./g, /Dr\./g, /Prof\./g, /Sr\./g, /Jr\./g,
+      /vs\./g, /etc\./g, /i\.e\./g, /e\.g\./g, /a\.m\./g, /p\.m\./g,
+      /A\.M\./g, /P\.M\./g, /U\.S\./g, /U\.K\./g, /E\.U\./g
+    ];
+    
+    abbreviations.forEach(abbrev => {
+      protectedText = protectedText.replace(abbrev, match => `{{ABBREV_${match.replace(/\./g, '_DOT_')}}}`);
+    });
+    
+    // Split into sentences
+    const sentenceRegex = /[^.!?]*[.!?]+(?:\s|$)|[^.!?]+$/g;
+    const matches = protectedText.match(sentenceRegex) || [];
+    
+    // Restore protected content
+    const sentences = matches.map(sentence => {
+      sentence = sentence.trim();
+      
+      // Restore decimals
+      sentence = sentence.replace(/\{\{DECIMAL_(\d+)_(\d+)\}\}/g, (match, int, dec) => `${int}.${dec}`);
+      
+      // Restore abbreviations
+      sentence = sentence.replace(/\{\{ABBREV_(.*?)\}\}/g, (match, abbrev) => {
+        return abbrev.replace(/_DOT_/g, '.');
+      });
+      
+      return sentence;
+    }).filter(sentence => sentence.length > 0);
+    
+    return sentences;
+  }
+
+  /**
+   * Get sentence hash for duplicate detection
+   */
+  function getSentenceHash(sentence) {
+    return hashMessage(sentence.trim().toLowerCase());
   }
 
   function extractCleanText(element, platform) {
@@ -936,15 +1019,23 @@ console.log('[AgentVibes Voice] Content script injected on:', window.location.hr
       platform: platform,
       checkInterval: null,
       lastSpokenSentenceIndex: -1,
-      lastProcessedLength: 0
+      lastProcessedLength: 0,
+      sentences: splitIntoSentences(initialText),
+      nextSpeakIndex: 0,
+      messageId: messageId
     };
 
     monitoredMessages.set(messageId, monitorState);
 
     console.log('[AgentVibes Voice] Started monitoring message:', messageId, 'Initial length:', initialText.length);
 
-    // Clear chunk queue processed sentences for this new message
-    chunkQueue.clearProcessedSentences();
+    // Reset global sentence tracking for this new message
+    currentMessageId = messageId;
+    sentenceArray = splitIntoSentences(initialText);
+    nextSpeakIndex = 0;
+    
+    // Clear spoken sentences for new message
+    spokenSentences.clear();
 
     // For Fast Mode: speak sentences as they complete during streaming
     monitorState.checkInterval = setInterval(() => {
@@ -958,12 +1049,12 @@ console.log('[AgentVibes Voice] Content script injected on:', window.location.hr
     addSpeakerIconToMessage(messageElement, initialText, platform);
   }
 
-  // Fast Mode: Speak sentences as they appear during streaming, batched via ChunkQueue
+  // Fast Mode: Speak sentences as they appear during streaming using sentence arrays
   function checkMessageStreamingForFastMode(messageId) {
     const state = monitoredMessages.get(messageId);
     if (!state) return;
 
-    const { textElement, element, platform, lastText, lastChangeTime, isComplete } = state;
+    const { textElement, element, platform, lastText, lastChangeTime, isComplete, sentences, nextSpeakIndex } = state;
 
     if (isComplete) return;
 
@@ -976,34 +1067,31 @@ console.log('[AgentVibes Voice] Content script injected on:', window.location.hr
       state.lastChangeTime = now;
     }
 
-    if (currentText.length > lastText.length) {
-      // Get only the NEW text since last processing
-      const newTextPortion = currentText.substring(state.lastProcessedLength || 0);
-
-      if (newTextPortion.length >= 5) {
-        // Extract complete sentences from the new portion
-        const sentences = splitIntoSentences(newTextPortion);
-        for (const sentence of sentences) {
-          const isComplete = /[.!?]\s*$/.test(sentence.trim());
-          if (isComplete) {
-            const sentenceHash = getSentenceHash(sentence);
-            if (!spokenSentences.has(sentenceHash)) {
-              spokenSentences.add(sentenceHash);
-              chunkQueue.addText(sentence, false);
-            }
-          }
-        }
-
-        // Update lastProcessedLength to after the last complete sentence
-        const lastSentenceEnd = Math.max(
-          currentText.lastIndexOf('.'),
-          currentText.lastIndexOf('!'),
-          currentText.lastIndexOf('?')
-        );
-        if (lastSentenceEnd > 0 && lastSentenceEnd > state.lastProcessedLength) {
-          state.lastProcessedLength = lastSentenceEnd + 1;
-        }
+    // Split current text into sentences
+    const allSentences = splitIntoSentences(currentText);
+    state.sentences = allSentences;
+    
+    // Find new sentences that haven't been spoken yet
+    const newSentences = [];
+    for (let i = state.nextSpeakIndex; i < allSentences.length; i++) {
+      const sentence = allSentences[i];
+      const sentenceHash = getSentenceHash(sentence);
+      
+      // Check if this sentence has already been spoken
+      if (!spokenSentences.has(sentenceHash)) {
+        newSentences.push({ sentence, index: i, hash: sentenceHash });
       }
+    }
+
+    // Speak new sentences immediately
+    for (const { sentence, index, hash } of newSentences) {
+      spokenSentences.add(hash);
+      state.nextSpeakIndex = index + 1;
+      
+      console.log(`[AgentVibes Voice] Speaking sentence ${index + 1}/${allSentences.length}: "${sentence.substring(0, 50)}..."`);
+      
+      // Direct sentence streaming - speak immediately
+      speakText(sentence);
     }
 
     // Check if streaming has stopped completely
@@ -1015,25 +1103,17 @@ console.log('[AgentVibes Voice] Content script injected on:', window.location.hr
       state.isComplete = true;
       clearInterval(state.checkInterval);
 
-      // Speak any remaining text that didn't end with a sentence
-      const allSentences = splitIntoSentences(currentText);
-      const remainingSentences = allSentences.filter(sentence => {
-        const hash = getSentenceHash(sentence);
-        return !spokenSentences.has(hash);
-      });
-
-      if (remainingSentences.length > 0) {
-        console.log('[AgentVibes Voice] Fast Mode: Flushing remaining sentences on stream end');
-        remainingSentences.forEach(sentence => {
-          const hash = getSentenceHash(sentence);
-          spokenSentences.add(hash);
-          chunkQueue.addText(sentence, false);
-        });
+      // Speak any remaining incomplete final sentence
+      if (allSentences.length > 0 && state.nextSpeakIndex < allSentences.length) {
+        const lastSentence = allSentences[allSentences.length - 1];
+        const lastSentenceHash = getSentenceHash(lastSentence);
+        
+        if (!spokenSentences.has(lastSentenceHash)) {
+          console.log('[AgentVibes Voice] Speaking final incomplete sentence');
+          spokenSentences.add(lastSentenceHash);
+          speakText(lastSentence);
+        }
       }
-
-      // Flush any partial buffer
-      console.log('[AgentVibes Voice] Streaming ended, flushing final chunk');
-      chunkQueue.flushBuffer();
 
       element.setAttribute('data-agentvibes-monitoring', 'complete');
       element.dataset.agentvibesComplete = 'true';
