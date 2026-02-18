@@ -60,8 +60,9 @@ console.log('[AgentVibes Voice] Content script injected on:', window.location.hr
   // Streaming TTS - Chunk Queue Management
   // ============================================
 
-  const MIN_CHUNK_LENGTH = 150; // Minimum characters before sending to TTS
-  const MAX_CHUNK_SENTENCES = 3; // Maximum sentences per chunk
+  const MIN_CHUNK_LENGTH = 80; // Minimum characters before sending to TTS (Deepgram: 50-100 for voice assistants)
+  const MAX_CHUNK_SENTENCES = 2; // Maximum sentences per chunk (Deepgram: 2 for natural pacing)
+  const FLUSH_TIMEOUT = 1500; // Flush timeout in milliseconds (1.5 seconds)
 
   class ChunkQueue {
     constructor() {
@@ -72,18 +73,31 @@ console.log('[AgentVibes Voice] Content script injected on:', window.location.hr
       this.nextChunk = null; // The chunk that was preloaded
       this.pendingBuffer = ''; // Buffer for accumulating sentences
       this.pendingSentences = 0; // Count of complete sentences in buffer
+      this.processedSentences = new Set(); // Track processed sentences for duplicate detection
+      this.isFirstSentence = true; // Track if this is the first sentence for immediate sending
+      this.flushTimer = null; // Timer for flush timeout
     }
 
     // Add text to buffer. Returns true if a chunk was created and queued.
     addText(text, isFinal = false) {
       if (!text || text.length < 5) return false;
 
+      // Clear any existing flush timer
+      if (this.flushTimer) {
+        clearTimeout(this.flushTimer);
+        this.flushTimer = null;
+      }
+
       // Add to pending buffer
       this.pendingBuffer += (this.pendingBuffer ? ' ' : '') + text;
       this.pendingSentences++;
 
       const bufferLength = this.pendingBuffer.length;
+      
+      // Deepgram pattern: Send first complete sentence immediately regardless of length
+      // For subsequent sentences, use normal batching rules
       const shouldCreateChunk = isFinal ||
+                                (this.isFirstSentence && this.isCompleteSentence(this.pendingBuffer)) ||
                                 bufferLength >= MIN_CHUNK_LENGTH ||
                                 this.pendingSentences >= MAX_CHUNK_SENTENCES;
 
@@ -92,16 +106,19 @@ console.log('[AgentVibes Voice] Content script injected on:', window.location.hr
         const chunk = this.pendingBuffer.trim();
         const chunkHash = hashMessage(chunk);
 
-        // Skip if already spoken
-        if (spokenSentences.has(chunkHash)) {
+        // Deepgram duplicate detection: Check if chunk or any of its sentences are already processed
+        if (this.isChunkDuplicate(chunk)) {
           this.resetBuffer();
           return false;
         }
 
-        // Mark as spoken immediately to prevent duplicates
-        spokenSentences.add(chunkHash);
+        // Mark as processed immediately to prevent duplicates
+        this.addChunkToProcessed(chunk);
         this.queue.push(chunk);
         console.log('[AgentVibes Voice] Chunk queued (' + bufferLength + ' chars, ' + this.pendingSentences + ' sentences):', chunk.substring(0, 60) + (chunk.length > 60 ? '...' : ''));
+
+        // Update first sentence flag
+        this.isFirstSentence = false;
 
         // Reset buffer
         this.resetBuffer();
@@ -119,6 +136,14 @@ console.log('[AgentVibes Voice] Content script injected on:', window.location.hr
         return true;
       }
 
+      // Set flush timeout for incomplete chunks
+      if (this.pendingBuffer.length > 0) {
+        this.flushTimer = setTimeout(() => {
+          console.log('[AgentVibes Voice] Flush timeout reached, forcing chunk creation');
+          this.flushBuffer();
+        }, FLUSH_TIMEOUT);
+      }
+
       return false;
     }
 
@@ -127,8 +152,66 @@ console.log('[AgentVibes Voice] Content script injected on:', window.location.hr
       this.pendingSentences = 0;
     }
 
+    // Clear processed sentences when a new message starts (Deepgram pattern)
+    clearProcessedSentences() {
+      this.processedSentences.clear();
+      this.isFirstSentence = true;
+      if (this.flushTimer) {
+        clearTimeout(this.flushTimer);
+        this.flushTimer = null;
+      }
+    }
+
+    // Deepgram duplicate detection: Check if chunk or any of its sentences are already processed
+    isChunkDuplicate(chunk) {
+      // Check if the entire chunk is already processed
+      const chunkHash = hashMessage(chunk);
+      if (this.processedSentences.has(chunkHash)) {
+        return true;
+      }
+
+      // Check individual sentences within the chunk
+      const sentences = this.splitIntoSentences(chunk);
+      for (const sentence of sentences) {
+        const sentenceHash = hashMessage(sentence);
+        if (this.processedSentences.has(sentenceHash)) {
+          return true;
+        }
+      }
+      return false;
+    }
+
+    // Add chunk and its sentences to processed set
+    addChunkToProcessed(chunk) {
+      const chunkHash = hashMessage(chunk);
+      this.processedSentences.add(chunkHash);
+
+      // Also add individual sentences
+      const sentences = this.splitIntoSentences(chunk);
+      for (const sentence of sentences) {
+        const sentenceHash = hashMessage(sentence);
+        this.processedSentences.add(sentenceHash);
+      }
+    }
+
+    // Split text into sentences for duplicate detection
+    splitIntoSentences(text) {
+      const sentenceRegex = /[^.!?]*[.!?]+(?:\s|$)|[^.!?]+$/g;
+      const matches = text.match(sentenceRegex) || [];
+      return matches.map(s => s.trim()).filter(s => s.length > 0);
+    }
+
+    // Check if text ends with sentence-ending punctuation
+    isCompleteSentence(text) {
+      return /[.!?]\s*$/.test(text.trim());
+    }
+
     // Force flush any remaining buffer as a final chunk
     flushBuffer() {
+      if (this.flushTimer) {
+        clearTimeout(this.flushTimer);
+        this.flushTimer = null;
+      }
       if (this.pendingBuffer && this.pendingBuffer.length >= 5) {
         this.addText('', true); // Force final chunk
       }
@@ -289,6 +372,7 @@ console.log('[AgentVibes Voice] Content script injected on:', window.location.hr
     clear() {
       this.queue = [];
       this.resetBuffer();
+      this.clearProcessedSentences(); // Clear processed sentences for new message
       if (this.currentAudio) {
         this.currentAudio.pause();
         this.currentAudio = null;
@@ -442,6 +526,9 @@ console.log('[AgentVibes Voice] Content script injected on:', window.location.hr
     if (streamingMessages.has(messageId)) {
       return;
     }
+
+    // Clear processed sentences when starting a new message (Deepgram pattern)
+    chunkQueue.clearProcessedSentences();
 
     // Mark message as being handled by streaming TTS to prevent fallback speakText()
     messageElement.setAttribute('data-agentvibes-streaming', 'true');
