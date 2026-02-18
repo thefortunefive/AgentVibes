@@ -57,10 +57,10 @@ console.log('[AgentVibes Voice] Content script injected on:', window.location.hr
   const INITIAL_LOAD_GRACE = 5000;
   const MIN_TEXT_LENGTH = 50;
   const PARALLEL_SPLIT_THRESHOLD = 100;
-  const OBSERVER_DELAY = 3000;
-  const DEBOUNCE_DELAY = 500;
-  const STREAMING_CHECK_INTERVAL = 300;
-  const STREAMING_STABLE_THRESHOLD = 2000;
+  const OBSERVER_DELAY = 500;
+  const DEBOUNCE_DELAY = 100;
+  const STREAMING_CHECK_INTERVAL = 100;
+  const STREAMING_STABLE_THRESHOLD = 800;
 
   // Track messages being monitored for completion
   const monitoredMessages = new Map();
