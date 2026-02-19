@@ -53,6 +53,9 @@ console.log('[AgentVibes Voice] Content script injected on:', window.location.hr
   // Edge TTS state for Fast Mode
   let isSpeakingEdgeTTS = false;
 
+  // Global stop flag to prevent new TTS requests after stop is pressed
+  let isStopped = false;
+
   const SPEAK_COOLDOWN = 5000;
   const INITIAL_LOAD_GRACE = 5000;
   const MIN_TEXT_LENGTH = 50;
@@ -666,6 +669,7 @@ console.log('[AgentVibes Voice] Content script injected on:', window.location.hr
     }
 
     async playText(text) {
+      if (isMuted) return;
       if (!text || text.length < 5) return;
 
       const halves = this.splitTextIntoHalves(text);
@@ -793,6 +797,7 @@ console.log('[AgentVibes Voice] Content script injected on:', window.location.hr
   // ============================================
 
   function speakText(sentence) {
+    if (isStopped) return;
     if (!settings.enabled || isMuted) return;
     if (!sentence || sentence.trim().length === 0) return;
 
@@ -905,6 +910,7 @@ console.log('[AgentVibes Voice] Content script injected on:', window.location.hr
 
     // Stop server TTS (audio player)
     audioPlayer.stop();
+    isStopped = true;
 
     // Stop current audio
     if (currentAudio) {
@@ -1086,6 +1092,7 @@ console.log('[AgentVibes Voice] Content script injected on:', window.location.hr
     // Clear spoken sentences for new message
     spokenSentences.clear();
     spokenSentenceHashes.clear();
+    isStopped = false;
 
     // For Fast Mode: speak sentences as they complete during streaming
     monitorState.checkInterval = setInterval(() => {
@@ -1135,6 +1142,7 @@ console.log('[AgentVibes Voice] Content script injected on:', window.location.hr
 
     // Speak new sentences immediately
     for (const { sentence, index, hash } of newSentences) {
+      if (isStopped) continue;
       spokenSentences.add(hash);
       state.nextSpeakIndex = index + 1;
       
