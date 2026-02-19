@@ -67,6 +67,9 @@ console.log('[AgentVibes Voice] Content script injected on:', window.location.hr
 
   // Track sentences spoken in streaming mode (for fast mode)
   const spokenSentences = new Set();
+
+  // Track sentence hashes sent to TTS server to prevent duplicate requests
+  const spokenSentenceHashes = new Set();
   
   // Sentence-level tracking for proper streaming
   let sentenceArray = [];
@@ -892,6 +895,7 @@ console.log('[AgentVibes Voice] Content script injected on:', window.location.hr
 
     // Clear sentence tracking
     spokenSentences.clear();
+    spokenSentenceHashes.clear();
     sentenceArray = [];
     nextSpeakIndex = 0;
     currentMessageId = null;
@@ -1081,6 +1085,7 @@ console.log('[AgentVibes Voice] Content script injected on:', window.location.hr
     
     // Clear spoken sentences for new message
     spokenSentences.clear();
+    spokenSentenceHashes.clear();
 
     // For Fast Mode: speak sentences as they complete during streaming
     monitorState.checkInterval = setInterval(() => {
@@ -1133,6 +1138,12 @@ console.log('[AgentVibes Voice] Content script injected on:', window.location.hr
       spokenSentences.add(hash);
       state.nextSpeakIndex = index + 1;
       
+      // Check if this sentence has already been sent to TTS server
+      if (spokenSentenceHashes.has(hash)) {
+        continue; // Skip duplicate
+      }
+      spokenSentenceHashes.add(hash);
+      
       console.log(`[AgentVibes Voice] Speaking sentence ${index + 1}/${allSentences.length}: "${sentence.substring(0, 50)}..."`);
       
       // Direct sentence streaming - speak immediately
@@ -1153,9 +1164,10 @@ console.log('[AgentVibes Voice] Content script injected on:', window.location.hr
         const lastSentence = allSentences[allSentences.length - 1];
         const lastSentenceHash = getSentenceHash(lastSentence);
         
-        if (!spokenSentences.has(lastSentenceHash)) {
+        if (!spokenSentences.has(lastSentenceHash) && !spokenSentenceHashes.has(lastSentenceHash)) {
           console.log('[AgentVibes Voice] Speaking final incomplete sentence');
           spokenSentences.add(lastSentenceHash);
+          spokenSentenceHashes.add(lastSentenceHash);
           speakText(lastSentence);
         }
       }
